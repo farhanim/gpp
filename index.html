@@ -427,7 +427,7 @@
 
         <!-- Unified financial summary: saldo saat ini + pemasukan/pengeluaran comparison -->
         <div class="summary-card">
-            <p class="saldo-label" id="periode-saldo-label">Total Saldo IPL (All Time)</p>
+            <p class="saldo-label" id="periode-saldo-label">Total Saldo Pemasukan (All Time)</p>
             <h3 class="saldo-amount" id="period-saldoakhir">Rp 0</h3>
         <hr>
             <div class="stat-split">
@@ -937,6 +937,32 @@
             document.getElementById('inputTanggalPengeluaran').valueAsDate = today;
             document.getElementById('inputTanggalAgenda').valueAsDate = today;
 
+            // Fix for Bootstrap's "Blocked aria-hidden on an element because its descendant
+            // retained focus" warning. This is a known Bootstrap 5.3 timing bug that can fire
+            // in two directions:
+            //  1) On CLOSE: the element just clicked (e.g. the × button) can still have focus
+            //     for an instant after Bootstrap marks the modal aria-hidden.
+            //  2) On OPEN: Bootstrap can briefly leave/re-apply aria-hidden="true" while the
+            //     modal is already visible and focus has already landed inside it (e.g. on the
+            //     × close button during the fade-in).
+            // hide.bs.modal handles case 1 by moving focus out first. The MutationObserver is a
+            // backstop for case 2 (and any other timing edge case): a modal that currently
+            // contains focus must never be aria-hidden, so strip the attribute the instant that
+            // combination occurs, on every modal in the app.
+            document.querySelectorAll('.modal').forEach(function(modalEl) {
+                modalEl.addEventListener('hide.bs.modal', function() {
+                    if (document.activeElement && modalEl.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
+                });
+
+                new MutationObserver(function() {
+                    if (modalEl.getAttribute('aria-hidden') === 'true' && modalEl.contains(document.activeElement)) {
+                        modalEl.removeAttribute('aria-hidden');
+                    }
+                }).observe(modalEl, { attributes: true, attributeFilter: ['aria-hidden'] });
+            });
+
             populateBulanTahun();
             initSwipeNavigation();
             await loadDataFromDatabase();
@@ -1227,7 +1253,12 @@
             let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
             let totalOutGlobal = dataPengeluaran.reduce((a, c) => a + parseInt(c.nominal), 0);
             let saldoAllTime = saldoAwalSistem + totalInGlobal - totalOutGlobal;
-            document.getElementById('saldo-global').innerText = formatRp(saldoAllTime);
+
+            // "Total Kas Saat Ini" (header card) tracks only the Kas reserve: the "Kas" portion of
+            // dues accumulated across every warga's paid months (all time), minus pengeluaran that
+            // isn't Gaji/Sampah (those are pass-through, funded by their own matching dues portion).
+            let saldoKasSaatIni = saldoAwalSistem + hitungTotalKasDariIuran() - hitungPengeluaranNonGajiSampah();
+            document.getElementById('saldo-global').innerText = formatRp(saldoKasSaatIni);
 
             let periodIn = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
@@ -1845,6 +1876,39 @@
            ============================================================ */
         function totalKomponen() { return komponenTagihan.reduce((a, k) => a + (parseInt(k.nominal) || 0), 0); }
 
+        // The per-month "Kas" (reserve) portion of the dues, from the "Kas" line in Komponen Tagihan —
+        // as opposed to "Gaji Keamanan" and "Sampah", which are pass-through operational costs.
+        function getKasPerBulan() {
+            let kasItem = komponenTagihan.find(k => (k.nama || '').toLowerCase().includes('kas'));
+            return kasItem ? (parseInt(kasItem.nominal) || 0) : 0;
+        }
+
+        // A pengeluaran counts as "Gaji/Sampah" (routine pass-through, funded by its own matching
+        // portion of the dues) if its item name mentions either keyword — matches both the default
+        // recurring items and any manually-renamed variant of them.
+        function isPengeluaranGajiSampah(itemNama) {
+            let nama = (itemNama || '').toLowerCase();
+            return nama.includes('gaji') || nama.includes('sampah');
+        }
+
+        // Total Kas accumulated from dues: for every warga, count every distinct month they've
+        // ever paid for (across all history, any year), then multiply by the per-month Kas portion.
+        // This isolates the "Kas" reserve fund from the Gaji/Sampah portions of what was collected.
+        function hitungTotalKasDariIuran() {
+            let kasPerBulan = getKasPerBulan();
+            let totalBulanLunas = dataWarga.reduce((sum, w) => sum + getBulanTerbayar(w.id).size, 0);
+            return totalBulanLunas * kasPerBulan;
+        }
+
+        // Pengeluaran that draws down the Kas reserve: everything EXCEPT Gaji/Sampah, since those
+        // are already funded by (and cancel out against) their own matching portion of the dues.
+        function hitungPengeluaranNonGajiSampah() {
+            return dataPengeluaran
+                .filter(p => !isPengeluaranGajiSampah(p.item))
+                .reduce((a, c) => a + parseInt(c.nominal), 0);
+        }
+
+
         function renderKomponenRows() {
             let el = document.getElementById('listKomponen');
             el.innerHTML = '';
@@ -1933,7 +1997,7 @@
             document.addEventListener('touchstart', function(e) {
                 if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu')) return;
                 touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
+                touchStartY = e.touches[0].clientY;T
             }, { passive: true });
 
             document.addEventListener('touchend', function(e) {
