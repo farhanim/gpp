@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IPL Graha Pesona Pakansari</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* === Brand (from logo) === */
+            --primary: #14B8A6;          /* Teal — brand / primary CTA */
+            --primary-dark: #0D9488;     /* Deep Teal — gradients, hover, active */
+            --primary-soft: #E3F7F3;     /* Pale Teal — chips, active nav bg */
+            --ink: #26333B;              /* Deep Navy-Charcoal (logo tile) — headings, dark surfaces */
+            --ink-soft: #64777F;         /* Muted navy-grey — secondary text */
+
+            /* === Semantic status (standardized across app) === */
+            --success: #22C55E;          /* Paid / Active / Lunas */
+            --success-soft: #DDF6E3;
+            --warning: #F5A623;          /* Pending / Underwriting */
+            --warning-soft: #FDECC9;
+            --danger: #F45B69;           /* Overdue / Rejected */
+            --danger-soft: #FDE3E1;
+
+            /* Back-compat aliases used across the file */
+            --secondary: #F5A623;
+            --coral: #F45B69;
+            --mint: #22C55E;
+            --teal: #14B8A6;
+            --primary-light: #5EEAD4;
+
+            --bg-top: #CFF1EA;           /* solid-ish teal tint at top of page */
+            --bg-bottom: #FAFDFC;        /* near-white at bottom of page */
+            --card-bg: #FFFFFF;
+            --text-dark: #26333B;
+            --text-muted: #64777F;
+            --card-radius: 24px;
+            --btn-radius: 50px;
+            --transition-smooth: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body { 
+            background: linear-gradient(180deg, var(--bg-top) 0%, #E4F5F1 22%, #F1FAF8 48%, var(--bg-bottom) 75%, var(--bg-bottom) 100%);
+            background-attachment: fixed;
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            color: var(--text-dark);
+            padding-bottom: 120px; 
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        h1, h2, h3, h4, h5, h6 { font-weight: 800; letter-spacing: -0.03em; }
+
+        /* Transparent App Header */
+        .top-navbar {
+            background: transparent;
+            color: var(--ink);
+            padding: 22px 20px 10px 20px;
+            position: relative;
+            z-index: 10;
+        }
+        .app-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .app-brand { display: flex; align-items: center; gap: 10px; }
+        .app-logo { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .app-logo img { width: 100%; height: 100%; object-fit: contain; }
+        .app-title-block { line-height: 1.05; }
+        .app-title-block .app-title { font-size: 0.9rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; display: block; }
+        .app-title-block .app-subtitle { font-size: 0.72rem; font-weight: 700; color: var(--ink-soft); opacity: 0.85; display: block; margin-top: 1px; }
+        .btn-login {
+            background: var(--ink); color: #fff; border: 1px; border-radius: var(--btn-radius);
+            padding: 9px 20px; font-size: 0.82rem; font-weight: 700; flex-shrink: 0;
+            box-shadow: 0 6px 16px rgba(38, 51, 59, 0.18);
+            transition: var(--transition-smooth);
+        }
+        .btn-login:active { transform: scale(0.96); }
+
+        .dashboard-container { position: relative; z-index: 20; padding: 0 20px; }
+
+        /* Modern Organic Cards */
+        .card-summary {
+            border: none; border-radius: var(--card-radius);
+            padding: 24px; margin-bottom: 18px;
+            box-shadow: 0 10px 30px rgba(10, 10, 10, 0.04);
+            position: relative; overflow: hidden;
+            background: var(--card-bg);
+            transition: var(--transition-smooth);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .bg-balance { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: #fff; }
+        .bg-balance .text-dark { color: #fff !important; }
+        .bg-income { background: var(--success-soft); color: #14532D; }
+        .bg-expense { background: var(--danger-soft); color: #7F1D1D; }
+        .bg-net { background: var(--ink); color: #fff; }
+        
+        .card-summary p { margin: 0; font-size: 0.85rem; font-weight: 700; opacity: 0.7; }
+        .card-summary h3 { margin: 6px 0 0 0; font-size: 1.6rem; letter-spacing: -0.03em; }
+
+        /* === Compact filter pill (no title) === */
+        .filter-pill {
+            background: var(--card-bg); border-radius: var(--btn-radius);
+            box-shadow: 0 6px 20px rgba(38, 51, 59, 0.05); margin-bottom: 16px;
+            border: 1px solid rgba(38, 51, 59, 0.06);
+            display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+        }
+        .filter-pill .btn-icon-sm { background: var(--primary-soft); color: var(--primary-dark); width: 34px; height: 34px; min-width: 34px; }
+        .filter-pill .btn-icon-sm:hover { background: var(--primary); color: #fff; }
+        .filter-pill select {
+            border: none; background: transparent; font-weight: 800; font-size: 0.92rem;
+            color: var(--ink); text-align: center; padding: 6px 2px; flex: 1;
+        }
+        .filter-pill select:focus { outline: none; box-shadow: none; }
+        .filter-pill .filter-divider { width: 1px; height: 20px; background: rgba(38,51,59,0.1); }
+
+        /* === Unified financial summary card (saldo + pemasukan/pengeluaran) === */
+        .summary-card {
+            background: var(--card-bg); border-radius: var(--card-radius);
+            padding: 22px; margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(38, 51, 59, 0.05);
+            border: 1px solid rgba(38, 51, 59, 0.05);
+        }
+        .summary-card .saldo-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin: 0; }
+        .summary-card .saldo-amount { font-size: 1.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; margin: 2px 0 16px 0; }
+        .split-bar { display: flex; width: 100%; height: 6px; border-radius: 10px; overflow: hidden; background: #EEF2F1; margin-bottom: 16px; }
+        .split-bar .split-in { background: var(--success); height: 100%; }
+        .split-bar .split-out { background: var(--danger); height: 100%; }
+        .stat-split { display: grid; gap: 8px; }
+        .stat-split .stat-item { flex: 1; display: flex; align-items: center; gap: 10px; }
+        .stat-split .stat-divider { width: 1px; background: rgba(38,51,59,0.08); margin: 0 16px; }
+        .stat-split .stat-icon {
+            width: 36px; height: 36px; min-width: 36px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+        }
+        .stat-split .stat-icon.in { background: var(--success-soft); color: #16803D; }
+        .stat-split .stat-icon.out { background: var(--danger-soft); color: #C42B37; }
+        .stat-split .stat-text p { margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+        .stat-split .stat-text strong { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+
+        /* === Simplified download / share card === */
+        .download-card {
+            background: var(--card-bg); border-radius: 20px; padding: 16px 18px;
+            box-shadow: 0 8px 24px rgba(38, 51, 59, 0.05); border: 1px solid rgba(38, 51, 59, 0.05);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;
+        }
+        .download-card .dl-text div { margin: 0; font-weight: 800; font-size: 0.9rem; color: var(--ink); }
+        .download-card .dl-text span { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+        .download-card .dl-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .btn-share-round, .btn-dl-round {
+            border: none; border-radius: 50%; width: 42px; height: 42px;
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+            box-shadow: 0 6px 14px rgba(38,51,59,0.1); transition: var(--transition-smooth);
+        }
+        .btn-share-round { background: #25D366; color: #fff; }
+        .btn-dl-pill {
+            border: none; border-radius: var(--btn-radius); background: var(--ink); color: #fff;
+            font-weight: 800; font-size: 0.85rem; padding: 11px 18px;
+            display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 14px rgba(38,51,59,0.15);
+        }
+        .btn-dl-pill:active, .btn-share-round:active { transform: scale(0.94); }
+        .dl-dropdown-menu { border-radius: 16px; border: none; box-shadow: 0 16px 40px rgba(38,51,59,0.15); padding: 8px; min-width: 170px; }
+        .dl-dropdown-menu .dropdown-item { border-radius: 10px; font-weight: 700; font-size: 0.85rem; padding: 9px 12px; color: var(--ink); }
+        .dl-dropdown-menu .dropdown-item:hover { background: var(--primary-soft); color: var(--primary-dark); }
+        .dl-dropdown-menu .dropdown-item i { width: 18px; }
+        
+        /* Companion Style Data Rows */
+        .data-card {
+            background: var(--card-bg); border-radius: 24px; padding: 18px 20px;
+            margin-bottom: 14px; box-shadow: 0 8px 24px rgba(10, 10, 10, 0.03);
+            border: 1px solid rgba(229, 231, 235, 0.6); 
+            display: flex; align-items: center; gap: 16px;
+            transition: var(--transition-smooth);
+        }
+        .data-card:hover {
+            box-shadow: 0 12px 30px rgba(20, 184, 166, 0.12);
+            border-color: rgba(20, 184, 166, 0.35);
+        }
+        
+        .icon-box {
+            width: 32px; height: 32px; min-width: 32px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; color: var(--text-dark); font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .icon-paid { background: var(--success-soft); color: #16803D; }
+        .icon-unpaid { background: var(--danger-soft); color: #C42B37; }
+        .icon-expense { background: var(--primary-soft); color: var(--primary-dark); }
+        .icon-note { background: var(--warning-soft); color: #8A5A05; }
+        .icon-agenda { background: var(--primary-soft); color: var(--primary-dark); }
+        
+        .data-info { flex-grow: 1; }
+        .data-info label { margin: 0; font-weight: 800; font-size: 11pt; color: var(--text-dark); }
+        .data-info p { margin: 0; font-size: 8pt; color: var(--text-muted); margin-top: 2px; font-weight: 600; }
+        
+        .btn-toggle-status {
+            border: none; border-radius: var(--btn-radius);
+            padding: 9px 18px; font-size: 0.85rem; font-weight: 800;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: var(--transition-smooth);
+        }
+        .btn-lunas { background: var(--success-soft); color: #16803D; }
+        .btn-bayar { background: var(--text-dark); color: white; }
+        
+        .btn-action {
+            border-radius: var(--btn-radius); font-weight: 800; padding: 14px;
+            border: none; font-size: 0.95rem;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 8px 20px rgba(10, 10, 10, 0.08);
+            transition: var(--transition-smooth);
+        }
+        .btn-action:active { transform: scale(0.97); }
+        .btn-pdf { background: var(--coral); color: white; }
+        .btn-wa { background: #25D366; color: white; }
+        .btn-csv { background: white; color: var(--text-dark); border: 2px solid #E5E7EB; }
+        
+        .btn-add-floating {
+            background: var(--text-dark); color: white;
+            border-radius: var(--btn-radius); font-weight: 800; padding: 10px 20px;
+            border: none; box-shadow: 0 8px 20px rgba(10, 10, 10, 0.15);
+            transition: var(--transition-smooth);
+            font-size: 0.85rem;
+        }
+        .btn-add-floating:active { transform: scale(0.95); }
+        
+        /* Glassmorphic Floating Bottom Navigation */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 -12px 35px rgba(10, 10, 10, 0.06);
+            display: flex; justify-content: space-around; align-items: center;
+            padding: 12px 10px 26px 10px; z-index: 1000;
+            border-top-left-radius: 36px; border-top-right-radius: 36px;
+            border-top: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .nav-item {
+            text-align: center; color: var(--text-muted); text-decoration: none;
+            font-size: 0.72rem; font-weight: 700; flex: 1; padding: 8px; border-radius: 20px;
+            transition: var(--transition-smooth);
+        }
+        .nav-item i { display: block; font-size: 1.3rem; margin-bottom: 4px; transition: var(--transition-smooth); }
+        .nav-item.active { background: var(--primary-soft); color: var(--primary-dark); }
+        .nav-item.active i { transform: translateY(-2px); }
+        
+        .section-content { display: none; padding: 0 20px; padding-top: 20px; }
+        .section-content.active { display: block; animation: fadeInCustom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes fadeInCustom {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .filter-box {
+            background: var(--card-bg); padding: 22px; border-radius: var(--card-radius);
+            box-shadow: 0 10px 30px rgba(10, 10, 10, 0.03); margin-bottom: 20px;
+            border: 1px solid rgba(229, 231, 235, 0.6);
+        }
+        .filter-box input, .filter-box select {
+            border-radius: 16px; border: 2px solid #E5E7EB; font-weight: 700; padding: 10px 14px; font-size: 0.9rem;
+        }
+        .filter-box input:focus, .filter-box select:focus {
+            border-color: var(--primary); box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.18);
+        }
+        
+        .status-badge {
+            display: inline-block; padding: 5px 12px; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 800; height:fit-content; text-wrap: nowrap;
+        }
+
+        .tag-rutin {
+            display:block; padding: 3px 9px; border-radius: 8px;
+            font-size: 0.68rem; font-weight: 800; background: var(--primary-soft); color: var(--primary-dark);
+            width:fit-content;
+        }
+        .agenda-2bulan-pill {
+            font-size: 0.7rem; font-weight: 600; color: var(--primary-dark);
+            background: var(--primary-soft); padding: 5px 12px; border-radius: var(--btn-radius);
+            white-space: nowrap; flex-shrink: 0; width: fit-content;
+        }
+        .default-pengeluaran-banner {
+            background: var(--warning-soft); border: 1px dashed rgba(245, 166, 35, 0.5);
+            border-radius: 18px; padding: 14px 16px; margin-bottom: 16px;
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .default-pengeluaran-banner p { margin: 0; font-size: 0.8rem; font-weight: 700; color: #8A5A05; }
+        .default-pengeluaran-banner button {
+            border: none; border-radius: var(--btn-radius); background: var(--ink); color: #fff;
+            font-size: 0.75rem; font-weight: 800; padding: 8px 14px; flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .modal-content { border-radius: 36px; border: none; box-shadow: 0 30px 60px rgba(10, 10, 10, 0.12); overflow: hidden; }
+        .modal-header { border: none; padding: 26px 26px 10px 26px; }
+        .modal-body { padding: 18px 26px; }
+        .modal-footer { border: none; padding: 10px 26px 26px 26px; }
+        .form-control, .form-select {
+            border-radius: 16px; border: 2px solid #E5E7EB; padding: 12px; font-weight: 600; font-size: 0.9rem;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary); box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.18);
+        }
+
+        #print-area { display: none; background: white; padding: 30px; color: #333; }
+        .progress-track { height: 8px; background: #F3F4F6; border-radius: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); border-radius: 20px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .card-warga { flex-direction: column; align-items: stretch; }
+        .btn-icon-sm {
+            width: 38px; height: 38px; min-width: 38px; border-radius: 14px;
+            border: none; background: #F3F4F6; color: var(--text-dark);
+            display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+            transition: var(--transition-smooth);
+        }
+        .btn-icon-sm:hover { background: #E5E7EB; }
+
+        /* Full-width "Ubah" edit action for list cards (Pengeluaran / Catatan / Agenda), sitting
+           below the card's text content — same pill treatment as Warga's Ubah/Bayar toggle,
+           just in neutral gray since this only opens the edit form (not a status change).
+           Delete never appears here; delete only lives inside the edit modal. */
+        .btn-edit-full {
+            border: none; border-radius: var(--btn-radius);
+            padding: 9px 18px; font-size: 0.85rem; font-weight: 800;
+            background: #F3F4F6; color: var(--text-dark);
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: var(--transition-smooth);
+        }
+        .btn-edit-full:hover { background: #E5E7EB; }
+        .btn-edit-full:active { transform: scale(0.97); }
+
+        .bulan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .bulan-chip {
+            border-radius: 14px; padding: 10px 4px; text-align: center;
+            font-weight: 800; font-size: 0.8rem; position: relative;
+        }
+        .bulan-chip.lunas { background: var(--success-soft); color: #16803D; }
+        .bulan-chip.belum { background: var(--danger-soft); color: #C42B37; }
+        .bulan-chip.akan { background: #F3F4F6; color: var(--text-muted); }
+        .bulan-chip.lunas-muka { background: #BAF0CB; }
+        .bulan-chip.current { box-shadow: 0 0 0 2px var(--ink); }
+    </style>
+</head>
+<body>
+
+    <div class="top-navbar">
+        <div class="app-header-row">
+            <div class="app-brand">
+                <div class="app-logo"><img src="data:image/png;base64,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" alt="Logo IPL"></div>
+                <div class="app-title-block">
+                    <span class="app-title">IPL Managament</span>
+                    <span class="app-subtitle">Graha Pesona Pakansari</span>
+                </div>
+            </div>
+            <button type="button" class="btn-login" onclick="alert('Fitur login akan segera hadir.')"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:4px;"></i> Login</button>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="section-content active dashboard-container">
+        <!-- Compact Balance Card with full width edit button at the bottom -->
+        <div class="card-summary bg-balance p-3 p-md-4">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <p class="small mb-0">Total Kas Saat Ini</p>
+                    <h3 id="saldo-global" class="fs-4 mb-0">Rp 0</h3>
+                </div>
+                <div class="icon-bg fs-3 opacity-50" style="color: white;"><i class="fas fa-coins"></i></div>
+            </div>
+
+            <div class="pt-2 border-top border-dark border-opacity-10 mb-3">
+                <small class="fw-bold d-block text-truncate" id="rekening-info" style="font-size: 0.85rem;"><i class="fas fa-university me-1"></i>BRI - Achmad Junaedi | Kav 20</small>
+                <div class="d-flex align-items-center justify-content-between mt-1">
+                    <div>
+                        <span class="fw-extrabold text-dark" style="font-size: 1.15rem; letter-spacing: 0.5px;" id="rekening-norek">315201035014535</span>
+                        <small class="text-dark opacity-75 d-block" style="font-size:6pt;" id="rekening-periode-teks">untuk periode 2026 September until 2027 September</small>
+                    </div>
+                    <button type="button" class="btn-icon-sm flex-shrink-0 shadow-sm" style="background: rgba(255,255,255,0.7); color: var(--text-dark); width: 32px; height: 32px; min-width: 32px; font-size: 0.8rem;" onclick="salinNoRekening()" title="Salin Nomor Rekening">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Compact info badge for IPL & Due Date -->
+            <div class="bg-white bg-opacity-10 rounded-3 d-flex justify-content-between align-items-center mb-3 text-dark" style="padding: 12px 16px; font-size: 0.8rem; gap: 10px;">
+                <div style="min-width: 0;">
+                    <span class="d-block opacity-75 fw-bold text-truncate" style="font-size: 0.68rem;">Nominal IPL</span>
+                    <strong id="headerNominalIpl" class="text-truncate d-block">Rp 125.000</strong>
+                </div>
+                <div class="vr opacity-25"></div>
+                <div class="text-end" style="min-width: 0;">
+                    <span class="d-block opacity-75 fw-bold text-truncate" style="font-size: 0.68rem;">Batas Bayar</span>
+                    <strong class="text-nowrap"><i class="fas fa-calendar-day me-1"></i>Tgl 1 - 5</strong>
+                </div>
+            </div>
+
+            <!-- Full-width Edit Button inside the card -->
+            <button type="button" class="btn btn-dark w-100 rounded-pill py-2.5 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" style="font-size: 0.85rem; background: var(--text-dark); border: none;" onclick="bukaEditRekening()">
+                <i class="fas fa-pen fa-xs"></i> Edit Info Rekening & Nominal
+            </button>
+        </div>
+
+        <div class="filter-pill">
+            <button type="button" class="btn-icon-sm" onclick="geserBulanFilter(-1)"><i class="fas fa-chevron-left fa-xs"></i></button>
+            <select id="filterBulan" class="form-select" onchange="filterDashboardDariBeranda()"></select>
+            <div class="filter-divider"></div>
+            <select id="filterTahun" class="form-select" onchange="filterDashboardDariBeranda()"></select>
+            <button type="button" class="btn-icon-sm" onclick="geserBulanFilter(1)"><i class="fas fa-chevron-right fa-xs"></i></button>
+        </div>
+
+        <div class="card-summary" style="background: var(--card-bg); padding: 18px 20px;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <p class="m-0" style="color: var(--text-dark); opacity: 0.7;">Progres Iuran <span id="progres-bulanlabel"></span></p>
+                <span class="fw-extrabold" id="progres-persen" style="color: var(--primary-dark); font-size: 0.9rem;">0%</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="progres-bar" style="width: 0%;"></div></div>
+            <p class="m-0 mt-2 fw-semibold" id="progres-label" style="font-size: 0.85rem; color: var(--text-muted);">0 dari 0 Warga Lunas</p>
+        </div>
+
+        <!-- Unified financial summary: saldo saat ini + pemasukan/pengeluaran comparison -->
+        <div class="summary-card">
+            <p class="saldo-label" id="periode-saldo-label">Total Saldo IPL (All Time)</p>
+            <h3 class="saldo-amount" id="period-saldoakhir">Rp 0</h3>
+        <hr>
+            <div class="stat-split">
+                <div class="stat-item">
+                    <div class="stat-icon in"><i class="fas fa-arrow-down"></i></div>
+                    <div class="stat-text">
+                        <p>Pemasukan</p>
+                        <strong id="period-pemasukan">Rp 0</strong>
+                    </div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-icon" style="background: var(--primary-soft); color: var(--primary-dark);"><i class="fas fa-wallet"></i></div>
+                    <div class="stat-text">
+                        <p>Kas Bulan Ini</p>
+                        <strong id="period-kasbulanini">Rp 0</strong>
+                    </div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-icon out"><i class="fas fa-arrow-up"></i></div>
+                    <div class="stat-text">
+                        <p>Pengeluaran</p>
+                        <strong id="period-pengeluaran">Rp 0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agenda Section on Beranda / Dashboard -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="text-dark m-0 fw-bold">📢 Agenda Mendatang</h6>
+                <span class="agenda-2bulan-pill" id="agenda-dashboard-2bulan-count">Ada 0 Agenda</span>
+            </div>
+            <div id="list-agenda-dashboard"></div>
+            <div id="agenda-dashboard-see-more" class="text-center mt-3" style="display: none;">
+                <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-4 py-2" style="font-size:9pt!important;" onclick="switchTab('agenda', document.querySelectorAll('.nav-item')[4])">
+                    Lihat Semua Agenda Lainnya <i class="fas fa-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="download-card">
+            <div class="d-flex align-items-center">
+                <h1 style="margin-right:8px;">🥏</h1>
+                <div class="dl-text">
+                    <div>Laporan Kas</div>
+                    <span>Share / unduh laporan periode ini</span>
+                </div>
+            </div>
+            <div class="dl-actions">
+                <button type="button" class="btn-share-round" onclick="shareWA()" title="Bagikan via WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                <div class="dropdown">
+                    <button type="button" class="btn-share-round bg-secondary" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dl-dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="downloadPDF(); return false;"><i class="fas fa-file-pdf"></i> PDF</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadCSV(); return false;"><i class="fas fa-file-csv"></i> CSV</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WARGA -->
+    <div id="warga" class="section-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="text-dark m-0 fw-bold">Tagihan Warga</h4>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn-add-floating m-0" onclick="bukaKomponenTagihan()"><i class="fas fa-gear"></i>&nbsp; Atur IPL</button>
+            </div>
+        </div>
+        
+        <!-- Updated Tagihan Warga Filter Component -->
+        <div class="filter-pill">
+            <button type="button" class="btn-icon-sm" onclick="geserBulanWargaFilter(-1)"><i class="fas fa-chevron-left fa-xs"></i></button>
+            <select id="filterBulanWarga" class="form-select" onchange="gantiBulanWargaFilter()"></select>
+            <div class="filter-divider"></div>
+            <select id="filterTahunWarga" class="form-select" onchange="gantiBulanWargaFilter()"></select>
+            <button type="button" class="btn-icon-sm" onclick="geserBulanWargaFilter(1)"><i class="fas fa-chevron-right fa-xs"></i></button>
+        </div>
+
+        <div class="bg-white rounded-4 d-flex justify-content-between align-items-center mb-3 text-dark" style="padding: 12px 16px; font-size: 0.8rem; gap: 10px;">
+                <div style="min-width: 0;">
+                    <span class="d-block opacity-75 fw-bold text-truncate" style="font-size: 0.68rem;">Nominal IPL</span>
+                    <strong id="wargaNominalIpl" class="text-truncate d-block">Rp 125.000</strong>
+                </div>
+                <div class="text-end" style="min-width: 0;">
+                    <span class="d-block opacity-75 fw-bold text-truncate" style="font-size: 0.68rem;">Batas Bayar</span>
+                    <strong class="text-nowrap"><i class="fas fa-calendar-day me-1"></i>Tgl 1 - 5</strong>
+                </div>
+            </div>
+
+        <div id="list-warga"></div>
+    </div>
+
+    <!-- PENGELUARAN -->
+    <div id="pengeluaran" class="section-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="text-dark m-0 fw-bold">Pengeluaran</h4>
+            <button class="btn-add-floating" onclick="bukaTambahPengeluaran()"><i class="fas fa-plus"></i> Catat</button>
+        </div>
+
+        <div class="filter-pill">
+            <button type="button" class="btn-icon-sm" onclick="geserBulanPengeluaranFilter(-1)"><i class="fas fa-chevron-left fa-xs"></i></button>
+            <select id="filterBulanPengeluaran" class="form-select" onchange="gantiBulanPengeluaranFilter()"></select>
+            <div class="filter-divider"></div>
+            <select id="filterTahunPengeluaran" class="form-select" onchange="gantiBulanPengeluaranFilter()"></select>
+            <button type="button" class="btn-icon-sm" onclick="geserBulanPengeluaranFilter(1)"><i class="fas fa-chevron-right fa-xs"></i></button>
+        </div>
+
+        <!-- Monthly kas summary for this page's active month -->
+        <div class="summary-card">
+            <p class="saldo-label">Ringkasan Kas <span id="pengeluaran-summary-bulanlabel"></span></p>
+            <h3 class="saldo-amount" id="pengeluaran-summary-net">Rp 0</h3>
+            <hr>
+            <div class="stat-split">
+                <div class="stat-item">
+                    <div class="stat-icon in"><i class="fas fa-arrow-down"></i></div>
+                    <div class="stat-text">
+                        <p>Pemasukan</p>
+                        <strong id="pengeluaran-summary-in">Rp 0</strong>
+                    </div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-icon" style="background: var(--primary-soft); color: var(--primary-dark);"><i class="fas fa-wallet"></i></div>
+                    <div class="stat-text">
+                        <p>Kas Bulan Ini</p>
+                        <strong id="pengeluaran-summary-kas">Rp 0</strong>
+                    </div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-icon out"><i class="fas fa-arrow-up"></i></div>
+                    <div class="stat-text">
+                        <p>Pengeluaran</p>
+                        <strong id="pengeluaran-summary-out">Rp 0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pengeluaran-default-banner"></div>
+
+        <div id="list-pengeluaran"></div>
+    </div>
+
+    <!-- CATATAN -->
+    <div id="catatan" class="section-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="text-dark m-0 fw-bold">Buku Catatan</h4>
+            <button class="btn-add-floating" onclick="bukaTambahCatatan()"><i class="fas fa-edit"></i> Buat</button>
+        </div>
+        <div id="list-catatan"></div>
+    </div>
+
+    <!-- AGENDA -->
+    <div id="agenda" class="section-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="text-dark m-0 fw-bold">Agenda Warga</h4>
+            <button class="btn-add-floating" onclick="bukaTambahAgenda()"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+        <div class="filter-box mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+            <div class="mt-2">
+                <label class="text-muted fw-bold m-0 mb-2">Tahun Agenda</label>
+                <label class="d-block agenda-2bulan-pill" id="agenda-2bulan-count">Ada 0 Agenda</label>
+            </div>
+                <select id="filterTahunAgenda" class="form-select form-select-sm" style="width: 120px;" onchange="renderAgenda()"></select>
+            </div>
+        </div>
+        <div id="list-agenda"></div>
+        <div id="agenda-see-more-container" class="text-center mt-3 mb-4" style="display: none;">
+            <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-4 py-2" onclick="switchTab('agenda', document.querySelectorAll('.nav-item')[4])">
+                Lihat Semua Agenda Lainnya <i class="fas fa-arrow-right ms-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal fade" id="modalBayarBulk" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold">Pembayaran IPL</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="d-flex align-items-center mb-4 p-3 rounded-4" style="background: var(--bg-light);">
+                        <div class="icon-box" style="background: var(--text-dark); color: white; margin-right: 15px;"><i class="fas fa-user"></i></div>
+                        <div>
+                            <h6 class="m-0 fw-bold" id="namaWargaBayar">Nama</h6>
+                            <p class="m-0 text-muted small" id="kavWargaBayar">Kav</p>
+                        </div>
+                    </div>
+                    <input type="hidden" id="idxWargaBayar">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Tanggal Transfer</label>
+                        <input type="date" class="form-control" id="tglBayarActual">
+                    </div>
+                    <label class="form-label text-muted small fw-bold">Periode Bayar</label>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><select class="form-select" id="startMonth" onchange="kalkulasiBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="startYear" onchange="kalkulasiBulk()"></select></div>
+                    </div>
+                    <div class="row g-2 mb-4">
+                        <div class="col-6"><select class="form-select" id="endMonth" onchange="kalkulasiBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="endYear" onchange="kalkulasiBulk()"></select></div>
+                    </div>
+                    <div class="p-4 rounded-4 text-center" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
+                        <small class="text-dark fw-bold d-block mb-1" id="labelTotalBulan">Total: 1 Bulan</small>
+                        <h2 class="text-dark m-0 fw-bold" id="totalBayarBulk">Rp 125.000</h2>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="prosesBayar()">Konfirmasi Pembayaran</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PENGELUARAN (Tambah / Edit) -->
+    <div class="modal fade" id="modalTambahPengeluaran" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold" id="titlePengeluaran">Catat Pengeluaran</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <input type="hidden" id="idEditPengeluaran">
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama / Keterangan</label><input type="text" class="form-control" id="inputNamaPengeluaran"  placeholder="contoh: Token listrik"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nominal (Rp)</label><input type="number" class="form-control" id="inputNominalPengeluaran"  placeholder="Rp 0"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Tanggal</label><input type="date" class="form-control" id="inputTanggalPengeluaran"></div>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn-icon-sm d-none" id="btnHapusPengeluaran" style="width: auto; padding: 0 16px; color: var(--coral);" onclick="hapusPengeluaran()"><i class="fas fa-trash"></i></button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0 btn-pdf" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanPengeluaran()">Simpan Pengeluaran</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CATATAN (Tambah / Edit) -->
+    <div class="modal fade" id="modalTambahCatatan" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold" id="titleCatatan">Buat Catatan</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <input type="hidden" id="idEditCatatan">
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Judul</label><input type="text" class="form-control" id="inputJudulCatatan"  placeholder="contoh: Rapat Warga"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Isi Pesan</label><textarea class="form-control" id="inputIsiCatatan" rows="4"  placeholder="contoh: Hasil Rapat warga adalah..."></textarea></div>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn-icon-sm d-none" id="btnHapusCatatan" style="width: auto; padding: 0 16px; color: var(--coral);" onclick="hapusCatatan()"><i class="fas fa-trash"></i></button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanCatatan()">Simpan Catatan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL AGENDA (Tambah / Edit) -->
+    <div class="modal fade" id="modalTambahAgenda" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold" id="titleAgenda">Tambah Agenda Warga</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <input type="hidden" id="idEditAgenda">
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Agenda</label><input type="text" class="form-control" id="inputNamaAgenda" placeholder="contoh: Halal Bihalal"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Estimasi Tanggal</label><input type="date" class="form-control" id="inputTanggalAgenda"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Keterangan</label><textarea class="form-control" id="inputKetAgenda" rows="3" placeholder="contoh: Agenda untuk memperingati setelah lebaran"></textarea></div>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn-icon-sm d-none" id="btnHapusAgenda" style="width: auto; padding: 0 16px; color: var(--coral);" onclick="hapusAgenda()"><i class="fas fa-trash"></i></button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanAgenda()">Simpan Agenda</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS (shared by Pengeluaran / Catatan / Agenda delete actions) -->
+    <div class="modal fade" id="modalKonfirmasiHapus" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body pt-4 text-center">
+                    <div class="icon-box mx-auto mb-3" style="width: 52px; height: 52px; border-radius: 18px; background: var(--danger-soft); color: #C42B37; font-size: 1.2rem;"><i class="fas fa-trash"></i></div>
+                    <h5 class="fw-bold mb-2">Hapus Data?</h5>
+                    <p class="text-muted mb-0" id="teksKonfirmasiHapus">Data yang dihapus tidak bisa dikembalikan.</p>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: #F1F3F5; color: var(--text-dark); padding: 14px;" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: var(--coral); color: white; padding: 14px;" id="btnKonfirmasiHapus">Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL WARGA -->
+    <div class="modal fade" id="modalDetailWarga" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h4 class="modal-title fw-bold m-0" id="detailNamaWarga">Nama</h4>
+                        <small class="text-muted fw-bold" id="detailKavWarga">Kav</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <button type="button" class="btn-icon-sm" onclick="gantiTahunDetail(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <h6 class="fw-bold m-0" id="detailTahun">2026</h6>
+                        <button type="button" class="btn-icon-sm" onclick="gantiTahunDetail(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="bulan-grid" id="detailBulanGrid"></div>
+                    <hr class="my-3" style="opacity:0.1;">
+                    <h6 class="fw-bold mb-2">Riwayat Pembayaran</h6>
+                    <div id="detailRiwayat"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="bayarDariDetail()"><i class="fas fa-hand-holding-dollar"></i> Bayar Tagihan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT WARGA -->
+    <div class="modal fade" id="modalEditWarga" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold">Edit Data Warga</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <input type="hidden" id="idxWargaEdit">
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Warga</label><input type="text" class="form-control" id="inputEditNama"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Kavling / ID</label><input type="text" class="form-control" id="inputEditKav" disabled></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Tagihan per Bulan (Rp)</label><input type="number" class="form-control" id="inputEditTagihan"></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanEditWarga()">Simpan</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT REKENING -->
+    <div class="modal fade" id="modalEditRekening" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold">Edit Info Rekening</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Pilih Kavling</label>
+                        <select class="form-select" id="inputRekeningKavling"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Berlaku untuk Tahun</label>
+                        <select class="form-select" id="inputRekeningTahun" onchange="updatePeriodeLabel()"></select>
+                    </div>
+                    <div class="mb-3 p-2 rounded-3 bg-light text-center">
+                        <small class="text-dark fw-bold" id="previewPeriodeTeks">untuk periode 2026 (September until 2027 September)</small>
+                    </div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Bank</label><input type="text" class="form-control" id="inputRekeningBank"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nomor Rekening</label><input type="text" class="form-control" id="inputRekeningNorek"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Pemilik Rekening</label><input type="text" class="form-control" id="inputRekeningPemilik"></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanEditRekening()">Simpan</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KOMPONEN -->
+    <div class="modal fade" id="modalKomponenTagihan" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold">Komponen Tagihan IPL</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div id="listKomponen"></div>
+                    <button type="button" class="btn-icon-sm mt-1" style="width: auto; padding: 0 14px; gap: 6px;" onclick="tambahBarisKomponen()"><i class="fas fa-plus"></i> Tambah Item</button>
+                    <div class="p-3 rounded-4 text-center mt-3" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
+                        <small class="text-dark fw-bold d-block mb-1">Total Tagihan Standar</small>
+                        <h3 class="text-dark m-0 fw-bold" id="totalKomponenLabel">Rp 0</h3>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanKomponenTagihan()">Simpan &amp; Terapkan</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT AREA -->
+    <div id="print-area">
+        <h2 style="text-align: center; color: #0A0A0A; margin-bottom: 5px;">LAPORAN KAS IPL GPP</h2>
+        <h4 style="text-align: center; color: #6B7280; margin-top: 0;" id="pdf-periode">Periode Terpilih</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr><td style="padding: 12px; border: 1px solid #E5E7EB; background: #FBF7FC;"><strong>Saldo Akhir</strong></td><td style="padding: 12px; border: 1px solid #E5E7EB; font-weight: bold; color: #0A0A0A;" id="pdf-saldo"></td></tr>
+            <tr><td style="padding: 12px; border: 1px solid #E5E7EB;">Pemasukan Periode</td><td style="padding: 12px; border: 1px solid #E5E7EB; color: #365314; font-weight: bold;" id="pdf-masuk"></td></tr>
+            <tr><td style="padding: 12px; border: 1px solid #E5E7EB;">Pengeluaran Periode</td><td style="padding: 12px; border: 1px solid #E5E7EB; color: #991B1B; font-weight: bold;" id="pdf-keluar"></td></tr>
+        </table>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+        <a href="javascript:void(0);" class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fas fa-home"></i>Beranda</a>
+        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('warga', this)"><i class="fas fa-users"></i>Warga</a>
+        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('pengeluaran', this)"><i class="fas fa-notes-medical"></i>Keluar</a>
+        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('catatan', this)"><i class="fas fa-pencil-alt"></i>Catatan</a>
+        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('agenda', this)"><i class="fas fa-calendar-check"></i>Agenda</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        /* ============================================================
+           1. CONFIG & SUPABASE CLIENT
+           ============================================================ */
+        const SUPABASE_URL = 'https://imxmxupjlrxbjvbvksdq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteG14dXBqbHJ4Ymp2YnZrc2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2MDA0NzAsImV4cCI6MjEwMzE3NjQ3MH0.mPNCZ_8DP6xlYK0lkYi8xDkhBB2gWm4naY7HqB_4Bqo';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const bulanNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const TAHUN_MIN = 2025, TAHUN_MAX = 2030;
+
+        // Default recurring monthly expenses offered (not yet saved) on the Pengeluaran page
+        const DEFAULT_PENGELUARAN_BULANAN = [
+            { item: 'Gaji Keamanan (Mang Oni)', nominal: 1300000 },
+            { item: 'Operational Sampah', nominal: 500000 },
+            { item: 'Uang Kas', nominal: 600000 }
+        ];
+
+        const TAB_ORDER = ['dashboard', 'warga', 'pengeluaran', 'catatan', 'agenda'];
+
+        /* ============================================================
+           2. GLOBAL STATE
+           ============================================================ */
+        let saldoAwalSistem = 3309060;
+
+        // Data loaded from Supabase
+        let dataWarga = [];
+        let riwayatPemasukan = [];
+        let dataPengeluaran = [];
+        let dataCatatan = [];
+        let dataAgenda = [];
+        let dataRekening = [];
+
+        // Editable "Atur IPL" bill components (source of truth for nominal IPL until saved)
+        let komponenTagihan = [
+            { nama: 'Gaji Keamanan', nominal: 65000 },
+            { nama: 'Sampah', nominal: 35000 },
+            { nama: 'Kas', nominal: 25000 }
+        ];
+
+        // Beranda's #filterBulan / #filterTahun is the single shared "active period" for both
+        // Progres Iuran and Tagihan Warga — the Warga tab's own pill mirrors the same value so
+        // the two never disagree about which month is being looked at.
+        // Pengeluaran keeps its own independent period, since browsing expense history separately
+        // from the dues period is expected.
+        let pengeluaranActiveMonth = new Date().getMonth();
+        let pengeluaranActiveYear = new Date().getFullYear();
+
+        // Bootstrap modal instances (assigned on DOMContentLoaded)
+        let modalBayar = null, modalDetail = null, modalEdit = null, modalRekening = null, modalKomponen = null, modalAgenda = null;
+        let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null;
+
+        // Warga detail modal state
+        let idxWargaDetail = null, tahunDetailAktif = new Date().getFullYear();
+
+        // Holds the action to run when the shared delete-confirmation modal is confirmed
+        let aksiKonfirmasiHapus = null;
+
+        /* ============================================================
+           3. INITIALIZATION
+           ============================================================ */
+        document.addEventListener('DOMContentLoaded', async function() {
+            modalBayar = new bootstrap.Modal(document.getElementById('modalBayarBulk'));
+            modalDetail = new bootstrap.Modal(document.getElementById('modalDetailWarga'));
+            modalEdit = new bootstrap.Modal(document.getElementById('modalEditWarga'));
+            modalRekening = new bootstrap.Modal(document.getElementById('modalEditRekening'));
+            modalKomponen = new bootstrap.Modal(document.getElementById('modalKomponenTagihan'));
+            modalAgenda = new bootstrap.Modal(document.getElementById('modalTambahAgenda'));
+            modalPengeluaran = new bootstrap.Modal(document.getElementById('modalTambahPengeluaran'));
+            modalCatatan = new bootstrap.Modal(document.getElementById('modalTambahCatatan'));
+            modalKonfirmasi = new bootstrap.Modal(document.getElementById('modalKonfirmasiHapus'));
+
+            // Shared delete-confirmation modal: runs whichever action was queued by bukaKonfirmasiHapus()
+            document.getElementById('btnKonfirmasiHapus').addEventListener('click', async function() {
+                if (aksiKonfirmasiHapus) await aksiKonfirmasiHapus();
+                aksiKonfirmasiHapus = null;
+                modalKonfirmasi.hide();
+            });
+
+            let today = new Date();
+            document.getElementById('tglBayarActual').valueAsDate = today;
+            document.getElementById('inputTanggalPengeluaran').valueAsDate = today;
+            document.getElementById('inputTanggalAgenda').valueAsDate = today;
+
+            populateBulanTahun();
+            initSwipeNavigation();
+            await loadDataFromDatabase();
+        });
+
+        // Queues a delete action behind a confirmation modal — used by Pengeluaran, Catatan, and Agenda deletes
+        function bukaKonfirmasiHapus(teks, aksi) {
+            document.getElementById('teksKonfirmasiHapus').innerText = teks;
+            aksiKonfirmasiHapus = aksi;
+            modalKonfirmasi.show();
+        }
+
+        async function loadDataFromDatabase() {
+            try {
+                let { data: warga } = await supabaseClient.from('warga').select('*');
+                let { data: pemasukan } = await supabaseClient.from('riwayat_pemasukan').select('*');
+                let { data: pengeluaran } = await supabaseClient.from('pengeluaran').select('*');
+                let { data: catatan } = await supabaseClient.from('catatan').select('*');
+                let { data: agenda } = await supabaseClient.from('agenda').select('*');
+                let { data: rekening } = await supabaseClient.from('rekening').select('*');
+
+                dataWarga = (warga || []).sort((a, b) => {
+                    let numA = parseInt(a.id.replace(/\D/g, '')) || 0;
+                    let numB = parseInt(b.id.replace(/\D/g, '')) || 0;
+                    return numA - numB;
+                });
+
+                riwayatPemasukan = (pemasukan || []).map(p => ({
+                    ...p,
+                    idWarga: p.id_warga,
+                    ket: p.keterangan || p.ket || 'Iuran Bulanan',
+                    bulanMulai: p.bulanMulai !== undefined ? p.bulanMulai : new Date(p.tanggal).getMonth(),
+                    tahunMulai: p.tahunMulai !== undefined ? p.tahunMulai : new Date(p.tanggal).getFullYear(),
+                    bulanAkhir: p.bulanAkhir !== undefined ? p.bulanAkhir : new Date(p.tanggal).getMonth(),
+                    tahunAkhir: p.tahunAkhir !== undefined ? p.tahunAkhir : new Date(p.tanggal).getFullYear()
+                }));
+
+                dataPengeluaran = pengeluaran || [];
+                dataCatatan = catatan || [];
+                dataAgenda = agenda || [];
+                dataRekening = (rekening || []).length ? rekening : [{ tahun: 2026, bank: 'BRI', norek: '315201035014535', pemilik: 'Achmad Junaedi' }];
+
+                // Defensive fix: if the `rekening` table has no unique constraint on `tahun`,
+                // an upsert can insert a duplicate row instead of updating the existing one,
+                // which made edited nomor rekening / periode appear to "not update". Keep only
+                // the most recently saved row per tahun (highest id, or last in load order).
+                let rekeningByTahun = new Map();
+                dataRekening.forEach(r => {
+                    let existing = rekeningByTahun.get(r.tahun);
+                    if (!existing) { rekeningByTahun.set(r.tahun, r); return; }
+                    if (r.id !== undefined && existing.id !== undefined) {
+                        if (r.id >= existing.id) rekeningByTahun.set(r.tahun, r);
+                    } else {
+                        rekeningByTahun.set(r.tahun, r);
+                    }
+                });
+                dataRekening = Array.from(rekeningByTahun.values());
+
+                renderSemua();
+            } catch (e) {
+                console.error("Gagal memuat data dari Supabase", e);
+            }
+        }
+
+        /* ============================================================
+           4. UTILITIES
+           ============================================================ */
+        function formatRp(angka) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka); }
+        function formatTgl(tglString) { return new Date(tglString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+        function expandBulanRange(bulanMulai, tahunMulai, bulanAkhir, tahunAkhir) {
+            let arr = [];
+            let cursor = tahunMulai * 12 + bulanMulai;
+            let end = tahunAkhir * 12 + bulanAkhir;
+            for (let c = cursor; c <= end; c++) { arr.push({ bulan: c % 12, tahun: Math.floor(c / 12) }); }
+            return arr;
+        }
+
+        function getBulanTerbayar(idWarga) {
+            let set = new Set();
+            riwayatPemasukan.filter(p => p.idWarga === idWarga).forEach(p => {
+                let mStart = p.bulanMulai !== undefined ? p.bulanMulai : new Date(p.tanggal).getMonth();
+                let yStart = p.tahunMulai !== undefined ? p.tahunMulai : new Date(p.tanggal).getFullYear();
+                let mEnd = p.bulanAkhir !== undefined ? p.bulanAkhir : mStart;
+                let yEnd = p.tahunAkhir !== undefined ? p.tahunAkhir : yStart;
+                expandBulanRange(mStart, yStart, mEnd, yEnd).forEach(m => set.add(m.tahun + '-' + m.bulan));
+            });
+            return set;
+        }
+
+        function isLunasBulan(idWarga, bulan, tahun) { return getBulanTerbayar(idWarga).has(tahun + '-' + bulan); }
+
+        function getStatusWargaTeks(idWarga, targetBulan, targetTahun) {
+            let setPaid = getBulanTerbayar(idWarga);
+            let targetKey = targetTahun + '-' + targetBulan;
+            let isCurrentPaid = setPaid.has(targetKey);
+
+            if (isCurrentPaid) {
+                let maxMonthVal = -1;
+                setPaid.forEach(key => {
+                    let [y, m] = key.split('-').map(Number);
+                    let val = y * 12 + m;
+                    if (val > maxMonthVal) maxMonthVal = val;
+                });
+                let targetVal = targetTahun * 12 + targetBulan;
+                if (maxMonthVal > targetVal) {
+                    let maxYear = Math.floor(maxMonthVal / 12);
+                    let maxMonth = maxMonthVal % 12;
+                    return {
+                        status: 'lunas',
+                        teks: `Lunas sampai bulan ${bulanNames[maxMonth]} ${maxYear}`
+                    };
+                }
+                return {
+                    status: 'lunas',
+                    teks: `Lunas ${bulanNames[targetBulan]} ${targetTahun}`
+                };
+            } else {
+                let unpaidMonthsList = [];
+                let cursor = targetTahun * 12 + targetBulan;
+                for (let c = cursor; c >= cursor - 24; c--) {
+                    let y = Math.floor(c / 12);
+                    let m = c % 12;
+                    if (!setPaid.has(y + '-' + m)) {
+                        unpaidMonthsList.push(`${bulanNames[m]} ${y}`);
+                    } else {
+                        break;
+                    }
+                }
+                unpaidMonthsList.reverse();
+
+                if (unpaidMonthsList.length > 0) {
+                    return {
+                        status: 'belum',
+                        teks: `Belum dari ${unpaidMonthsList.join(', ')}`
+                    };
+                }
+                return {
+                    status: 'belum',
+                    teks: `Belum ${bulanNames[targetBulan]} ${targetTahun}`
+                };
+            }
+        }
+
+        /* ============================================================
+           5. MONTH / YEAR FILTER CONTROLS (shared by all tabs)
+           ============================================================ */
+        function populateBulanTahun() {
+            let monthOptions = ""; bulanNames.forEach((b, i) => { monthOptions += `<option value="${i}">${b}</option>`; });
+            document.getElementById('startMonth').innerHTML = monthOptions;
+            document.getElementById('endMonth').innerHTML = monthOptions;
+            document.getElementById('filterBulan').innerHTML = monthOptions;
+            document.getElementById('filterBulanWarga').innerHTML = monthOptions;
+            document.getElementById('filterBulanPengeluaran').innerHTML = monthOptions;
+
+            let yearOptions = ""; let currentY = new Date().getFullYear();
+            for (let y = TAHUN_MIN; y <= TAHUN_MAX; y++) { yearOptions += `<option value="${y}">${y}</option>`; }
+            document.getElementById('startYear').innerHTML = yearOptions;
+            document.getElementById('endYear').innerHTML = yearOptions;
+            document.getElementById('filterTahun').innerHTML = yearOptions;
+            document.getElementById('filterTahunWarga').innerHTML = yearOptions;
+            document.getElementById('filterTahunAgenda').innerHTML = yearOptions;
+            document.getElementById('filterTahunPengeluaran').innerHTML = yearOptions;
+
+            // Default: current month/year is always the active filter on every tab
+            document.getElementById('startMonth').value = new Date().getMonth();
+            document.getElementById('startYear').value = currentY;
+            document.getElementById('endMonth').value = new Date().getMonth();
+            document.getElementById('endYear').value = currentY;
+            document.getElementById('filterBulan').value = new Date().getMonth();
+            document.getElementById('filterTahun').value = currentY;
+            document.getElementById('filterBulanWarga').value = new Date().getMonth();
+            document.getElementById('filterTahunWarga').value = currentY;
+            document.getElementById('filterTahunAgenda').value = currentY;
+            document.getElementById('filterBulanPengeluaran').value = pengeluaranActiveMonth;
+            document.getElementById('filterTahunPengeluaran').value = pengeluaranActiveYear;
+        }
+
+        // Single source of truth for the shared Beranda/Warga period: mirrors the chosen
+        // month/year onto both filter pills, then re-renders everything that depends on it.
+        function setPeriodeAktif(bulan, tahun) {
+            document.getElementById('filterBulan').value = bulan;
+            document.getElementById('filterTahun').value = tahun;
+            document.getElementById('filterBulanWarga').value = bulan;
+            document.getElementById('filterTahunWarga').value = tahun;
+            renderWarga();
+            filterDashboard();
+        }
+
+        function geserBulanFilter(delta) {
+            let selBulan = document.getElementById('filterBulan');
+            let selTahun = document.getElementById('filterTahun');
+            let m = parseInt(selBulan.value) + delta;
+            let y = parseInt(selTahun.value);
+
+            if (m > 11) { m = 0; y += 1; }
+            else if (m < 0) { m = 11; y -= 1; }
+
+            if (y >= TAHUN_MIN && y <= TAHUN_MAX) {
+                setPeriodeAktif(m, y);
+            }
+        }
+
+        function geserBulanWargaFilter(delta) {
+            let selBulan = document.getElementById('filterBulanWarga');
+            let selTahun = document.getElementById('filterTahunWarga');
+            let m = parseInt(selBulan.value) + delta;
+            let y = parseInt(selTahun.value);
+
+            if (m > 11) { m = 0; y += 1; }
+            else if (m < 0) { m = 11; y -= 1; }
+
+            if (y >= TAHUN_MIN && y <= TAHUN_MAX) {
+                setPeriodeAktif(m, y);
+            }
+        }
+
+        // Bound to onchange on #filterBulan / #filterTahun (Beranda pill)
+        function filterDashboardDariBeranda() {
+            setPeriodeAktif(parseInt(document.getElementById('filterBulan').value), parseInt(document.getElementById('filterTahun').value));
+        }
+
+        // Bound to onchange on #filterBulanWarga / #filterTahunWarga (Warga pill)
+        function gantiBulanWargaFilter() {
+            setPeriodeAktif(parseInt(document.getElementById('filterBulanWarga').value), parseInt(document.getElementById('filterTahunWarga').value));
+        }
+
+        function geserBulanPengeluaranFilter(delta) {
+            let selBulan = document.getElementById('filterBulanPengeluaran');
+            let selTahun = document.getElementById('filterTahunPengeluaran');
+            let m = parseInt(selBulan.value) + delta;
+            let y = parseInt(selTahun.value);
+
+            if (m > 11) { m = 0; y += 1; }
+            else if (m < 0) { m = 11; y -= 1; }
+
+            if (y >= TAHUN_MIN && y <= TAHUN_MAX) {
+                selBulan.value = m;
+                selTahun.value = y;
+                gantiBulanPengeluaranFilter();
+            }
+        }
+
+        function gantiBulanPengeluaranFilter() {
+            pengeluaranActiveMonth = parseInt(document.getElementById('filterBulanPengeluaran').value);
+            pengeluaranActiveYear = parseInt(document.getElementById('filterTahunPengeluaran').value);
+            renderPengeluaran();
+        }
+
+        /* ============================================================
+           6. MASTER RENDER
+           ============================================================ */
+        function renderSemua() {
+            renderWarga();
+            renderPengeluaran();
+            renderCatatan();
+            renderAgenda();
+            renderAgendaDashboard();
+            renderProgresBulanIni();
+            renderRekening();
+            filterDashboard();
+        }
+
+        /* ============================================================
+           7. DASHBOARD (BERANDA)
+           ============================================================ */
+        // Progres Iuran always follows the Beranda month/year filter (#filterBulan / #filterTahun)
+        function renderProgresBulanIni() {
+            let curMonth = parseInt(document.getElementById('filterBulan').value);
+            let curYear = parseInt(document.getElementById('filterTahun').value);
+            let total = dataWarga.length;
+            let lunas = dataWarga.filter(w => isLunasBulan(w.id, curMonth, curYear)).length;
+            let persen = total === 0 ? 0 : Math.round((lunas / total) * 100);
+
+            document.getElementById('progres-bulanlabel').innerText = `${bulanNames[curMonth]} ${curYear}`;
+            document.getElementById('progres-persen').innerText = `${persen}%`;
+            document.getElementById('progres-bar').style.width = `${persen}%`;
+            document.getElementById('progres-label').innerText = `${lunas} dari ${total} Warga Lunas`;
+        }
+
+        // Recalculates every Beranda summary card for the selected #filterBulan / #filterTahun,
+        // then re-renders everything else that depends on that same filter (progres, rekening/nominal, agenda mendatang).
+        function filterDashboard() {
+            let bulan = parseInt(document.getElementById('filterBulan').value);
+            let tahun = parseInt(document.getElementById('filterTahun').value);
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
+
+            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let totalOutGlobal = dataPengeluaran.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let saldoAllTime = saldoAwalSistem + totalInGlobal - totalOutGlobal;
+            document.getElementById('saldo-global').innerText = formatRp(saldoAllTime);
+
+            let periodIn = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
+            document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
+            document.getElementById('period-kasbulanini').innerText = formatRp(periodIn - periodOut);
+
+            // Optional in/out ratio bar — only present on some layouts, so guard instead of assuming it exists.
+            // (A previous bug here called getElementById on ids with no matching markup, which threw and
+            // silently aborted the rest of this function — that's why Progres Iuran / Agenda Mendatang / Rekening
+            // below could look "frozen" after changing the filter, even though the filter pill itself updated.)
+            let splitInEl = document.getElementById('split-bar-in');
+            let splitOutEl = document.getElementById('split-bar-out');
+            if (splitInEl && splitOutEl) {
+                let splitTotal = periodIn + periodOut;
+                let inPct = splitTotal === 0 ? 50 : Math.round((periodIn / splitTotal) * 100);
+                splitInEl.style.width = `${inPct}%`;
+                splitOutEl.style.width = `${100 - inPct}%`;
+            }
+
+            // "Total Saldo IPL (All Time)" is intentionally independent of the Beranda period filter —
+            // it always shows the running total across every transaction ever recorded, and its label never changes.
+            document.getElementById('period-saldoakhir').innerText = formatRp(saldoAllTime);
+
+            renderProgresBulanIni();
+            renderRekening();
+            renderAgendaDashboard();
+        }
+
+        /* ============================================================
+           8. WARGA (TAGIHAN)
+           ============================================================ */
+        // Tagihan Warga shares its month/year with the Beranda "Progres Iuran" filter
+        // (#filterBulan / #filterTahun) — see setPeriodeAktif(). #filterBulanWarga /
+        // #filterTahunWarga are kept mirrored to the same value purely for display.
+        function renderWarga() {
+            const container = document.getElementById('list-warga'); container.innerHTML = '';
+
+            let activeMonth = parseInt(document.getElementById('filterBulan').value);
+            let activeYear = parseInt(document.getElementById('filterTahun').value);
+            document.getElementById('filterBulanWarga').value = activeMonth;
+            document.getElementById('filterTahunWarga').value = activeYear;
+
+            // Keep the "Nominal IPL" header in sync with the current tagihan data every time this tab renders
+            updateNominalIplDisplays();
+
+            dataWarga.forEach((w, index) => {
+                let infoStatus = getStatusWargaTeks(w.id, activeMonth, activeYear);
+                let lunas = infoStatus.status === 'lunas';
+                container.innerHTML += `
+                    <div class="data-card card-warga">
+                        <div class="d-flex align-items-top gap-3 w-100">
+                            <div class="icon-box ${lunas ? 'icon-paid' : 'icon-unpaid'}">${lunas ? '<i class="fas fa-check"></i>' : '<i class="fas fa-exclamation"></i>'}</div>
+                            <div class="data-info">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <label class="fw-bold">${w.id}</label>
+                                </div>
+                                <p>${w.nama}</p>
+                                <p class="status-badge" style="text-wrap:auto!important; font-size:8pt; padding: 2px 12px; background: ${lunas ? 'rgba(183, 220, 65, 0.25)' : 'rgba(249, 116, 95, 0.15)'}; color: ${lunas ? '#365314' : '#991B1B'};">${infoStatus.teks}</p>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <button type="button" class="btn-icon-sm" onclick="bukaDetailWarga(${index})"><i class="fas fa-calendar-alt"></i></button>
+                                <button type="button" class="btn-icon-sm" onclick="bukaEditWarga(${index})"><i class="fas fa-pen"></i></button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-toggle-status ${lunas ? 'btn-lunas' : 'btn-bayar'} w-100 mt-1" onclick="bukaModalBayar(${index})">${lunas ? 'Ubah' : 'Bayar'}</button>
+                    </div>`;
+            });
+        }
+
+        function bukaModalBayar(index) {
+            document.getElementById('idxWargaBayar').value = index;
+            document.getElementById('namaWargaBayar').innerText = dataWarga[index].nama;
+            document.getElementById('kavWargaBayar').innerText = dataWarga[index].id;
+            kalkulasiBulk(); modalBayar.show();
+        }
+
+        function kalkulasiBulk() {
+            let m1 = parseInt(document.getElementById('startMonth').value), y1 = parseInt(document.getElementById('startYear').value);
+            let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
+            let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
+            if (diffMonths <= 0) { document.getElementById('labelTotalBulan').innerText = "Rentang Salah!"; document.getElementById('totalBayarBulk').innerText = "Rp 0"; return; }
+            document.getElementById('labelTotalBulan').innerText = `Total: ${diffMonths} Bulan`;
+            document.getElementById('totalBayarBulk').innerText = formatRp(dataWarga[document.getElementById('idxWargaBayar').value].tagihan * diffMonths);
+        }
+
+        async function prosesBayar() {
+            let w = dataWarga[document.getElementById('idxWargaBayar').value];
+            let m1 = parseInt(document.getElementById('startMonth').value), y1 = parseInt(document.getElementById('startYear').value);
+            let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
+            let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
+            let ketStr = diffMonths === 1 ? `Iuran ${bulanNames[m1]} ${y1}` : `Iuran ${bulanNames[m1]} ${y1.toString().slice(-2)} - ${bulanNames[m2]} ${y2.toString().slice(-2)} (${diffMonths}bln)`;
+            let nominal = w.tagihan * diffMonths;
+            let tanggal = document.getElementById('tglBayarActual').value;
+
+            let { error } = await supabaseClient
+                .from('riwayat_pemasukan')
+                .insert([{
+                    id_warga: w.id,
+                    nominal,
+                    tanggal,
+                    keterangan: ketStr,
+                    bulanMulai: m1,
+                    tahunMulai: y1,
+                    bulanAkhir: m2,
+                    tahunAkhir: y2
+                }]);
+
+            if (error) return alert('Gagal menyimpan pembayaran: ' + error.message);
+
+            await loadDataFromDatabase();
+            modalBayar.hide();
+        }
+
+        function bukaDetailWarga(index) {
+            idxWargaDetail = index; tahunDetailAktif = new Date().getFullYear();
+            document.getElementById('detailNamaWarga').innerText = dataWarga[index].nama;
+            document.getElementById('detailKavWarga').innerText = `${dataWarga[index].id} • ${formatRp(dataWarga[index].tagihan)}/bln`;
+            renderDetailGrid(); modalDetail.show();
+        }
+
+        function gantiTahunDetail(delta) { tahunDetailAktif += delta; renderDetailGrid(); }
+
+        function renderDetailGrid() {
+            let w = dataWarga[idxWargaDetail];
+            document.getElementById('detailTahun').innerText = tahunDetailAktif;
+            let grid = document.getElementById('detailBulanGrid'); grid.innerHTML = '';
+            bulanNames.forEach((nm, i) => {
+                let paid = isLunasBulan(w.id, i, tahunDetailAktif);
+                let cls = paid ? 'lunas' : 'belum';
+                grid.innerHTML += `<div class="bulan-chip ${cls}">${nm}</div>`;
+            });
+            let riwayatEl = document.getElementById('detailRiwayat');
+            let payments = riwayatPemasukan.filter(p => p.idWarga === w.id);
+            riwayatEl.innerHTML = payments.length ? payments.map(p => `<div class="d-flex justify-content-between py-2 border-bottom"><div><p class="m-0 fw-bold small">${p.ket}</p><small class="text-muted">${formatTgl(p.tanggal)}</small></div><span class="fw-bold text-success">${formatRp(p.nominal)}</span></div>`).join('') : '<p class="text-muted small">Belum ada riwayat.</p>';
+        }
+
+        function bayarDariDetail() { modalDetail.hide(); bukaModalBayar(idxWargaDetail); }
+
+        function bukaEditWarga(index) {
+            document.getElementById('idxWargaEdit').value = index;
+            document.getElementById('inputEditNama').value = dataWarga[index].nama;
+            document.getElementById('inputEditKav').value = dataWarga[index].id;
+            document.getElementById('inputEditTagihan').value = dataWarga[index].tagihan;
+            modalEdit.show();
+        }
+
+        async function simpanEditWarga() {
+            let idx = parseInt(document.getElementById('idxWargaEdit').value);
+            let w = dataWarga[idx];
+            let nama = document.getElementById('inputEditNama').value;
+            let tagihan = parseInt(document.getElementById('inputEditTagihan').value);
+
+            let { error } = await supabaseClient
+                .from('warga')
+                .update({ nama, tagihan })
+                .eq('id', w.id);
+
+            if (error) return alert('Gagal: ' + error.message);
+
+            await loadDataFromDatabase();
+            modalEdit.hide();
+        }
+
+        /* ============================================================
+           9. PENGELUARAN
+           ============================================================ */
+        function renderPengeluaran() {
+            const container = document.getElementById('list-pengeluaran'); if (!container) return; container.innerHTML = '';
+
+            document.getElementById('filterBulanPengeluaran').value = pengeluaranActiveMonth;
+            document.getElementById('filterTahunPengeluaran').value = pengeluaranActiveYear;
+
+            let bulan = pengeluaranActiveMonth, tahun = pengeluaranActiveYear;
+
+            let pengeluaranBulanIni = dataPengeluaran.filter(p => {
+                let d = new Date(p.tanggal);
+                return d.getMonth() === bulan && d.getFullYear() === tahun;
+            });
+
+            // Which default recurring items are still missing this month (offered, not yet saved)
+            let namaTersimpan = pengeluaranBulanIni.map(p => p.item);
+            let defaultBelumAda = DEFAULT_PENGELUARAN_BULANAN.filter(d => !namaTersimpan.includes(d.item));
+
+            let bannerEl = document.getElementById('pengeluaran-default-banner');
+            if (bannerEl) {
+                if (defaultBelumAda.length > 0) {
+                    bannerEl.innerHTML = `
+                        <div class="default-pengeluaran-banner">
+                            <p>Pengeluaran rutin ${bulanNames[bulan]} ${tahun} belum tercatat (${defaultBelumAda.map(d => d.item).join(', ')}).</p>
+                            <button type="button" onclick="tambahDefaultPengeluaranBulanIni()">+ Tambah Rutin</button>
+                        </div>`;
+                } else {
+                    bannerEl.innerHTML = '';
+                }
+            }
+
+            // Monthly kas summary (Pemasukan vs Pengeluaran) for this page's active month
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
+            let inBulanIni = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let outBulanIni = pengeluaranBulanIni.reduce((a, c) => a + parseInt(c.nominal), 0);
+            document.getElementById('pengeluaran-summary-bulanlabel').innerText = `${bulanNames[bulan]} ${tahun}`;
+            document.getElementById('pengeluaran-summary-in').innerText = formatRp(inBulanIni);
+            document.getElementById('pengeluaran-summary-out').innerText = formatRp(outBulanIni);
+            document.getElementById('pengeluaran-summary-net').innerText = formatRp(inBulanIni - outBulanIni);
+            document.getElementById('pengeluaran-summary-kas').innerText = formatRp(inBulanIni - outBulanIni);
+
+            if (pengeluaranBulanIni.length === 0) {
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada pengeluaran tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
+                return;
+            }
+
+            [...pengeluaranBulanIni].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)).forEach(p => {
+                let isRutin = DEFAULT_PENGELUARAN_BULANAN.some(d => d.item === p.item);
+                container.innerHTML += `<div class="data-card flex-column align-items-stretch">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon-box icon-expense"><i class="fas fa-receipt"></i></div>
+                        <div class="data-info flex-grow-1">
+                            <label class="fw-bold" style="font-style:9pt;">${p.item}${isRutin ? '<span class="tag-rutin">Rutin</span>' : ''}</label>
+                            <p style="font-style:6pt;">${formatTgl(p.tanggal)}</p>
+                        </div>
+                        <div class="fw-bold text-nowrap" style="color: var(--coral); font-style:8pt!important;">-${formatRp(p.nominal).replace('Rp', '')}</div>
+                    </div>
+                    <button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditPengeluaran(${p.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>
+                </div>`;
+            });
+        }
+
+        async function tambahDefaultPengeluaranBulanIni() {
+            let bulan = pengeluaranActiveMonth, tahun = pengeluaranActiveYear;
+            let pengeluaranBulanIni = dataPengeluaran.filter(p => {
+                let d = new Date(p.tanggal);
+                return d.getMonth() === bulan && d.getFullYear() === tahun;
+            });
+            let namaTersimpan = pengeluaranBulanIni.map(p => p.item);
+            let defaultBelumAda = DEFAULT_PENGELUARAN_BULANAN.filter(d => !namaTersimpan.includes(d.item));
+            if (defaultBelumAda.length === 0) return;
+
+            let tanggal = new Date(tahun, bulan, 1).toISOString().split('T')[0];
+            let rows = defaultBelumAda.map(d => ({ item: d.item, nominal: d.nominal, tanggal }));
+
+            let { error } = await supabaseClient.from('pengeluaran').insert(rows);
+            if (error) return alert('Gagal menambah pengeluaran rutin: ' + error.message);
+
+            await loadDataFromDatabase();
+        }
+
+        // Reset the modal to "add" mode (blank fields, hidden delete button)
+        function bukaTambahPengeluaran() {
+            document.getElementById('idEditPengeluaran').value = '';
+            document.getElementById('titlePengeluaran').innerText = 'Catat Pengeluaran';
+            document.getElementById('inputNamaPengeluaran').value = '';
+            document.getElementById('inputNominalPengeluaran').value = '';
+            document.getElementById('inputTanggalPengeluaran').valueAsDate = new Date();
+            document.getElementById('btnHapusPengeluaran').classList.add('d-none');
+            modalPengeluaran.show();
+        }
+
+        // Populate the same modal in "edit" mode from an existing row
+        function bukaEditPengeluaran(id) {
+            let p = dataPengeluaran.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('idEditPengeluaran').value = id;
+            document.getElementById('titlePengeluaran').innerText = 'Edit Pengeluaran';
+            document.getElementById('inputNamaPengeluaran').value = p.item;
+            document.getElementById('inputNominalPengeluaran').value = p.nominal;
+            document.getElementById('inputTanggalPengeluaran').value = p.tanggal;
+            document.getElementById('btnHapusPengeluaran').classList.remove('d-none');
+            modalPengeluaran.show();
+        }
+
+        async function simpanPengeluaran() {
+            let idEdit = document.getElementById('idEditPengeluaran').value;
+            let item = document.getElementById('inputNamaPengeluaran').value;
+            let nominal = parseInt(document.getElementById('inputNominalPengeluaran').value);
+            let tanggal = document.getElementById('inputTanggalPengeluaran').value;
+
+            if (!item || !tanggal || isNaN(nominal)) return alert('Lengkapi semua data!');
+
+            let { error } = idEdit
+                ? await supabaseClient.from('pengeluaran').update({ item, nominal, tanggal }).eq('id', idEdit)
+                : await supabaseClient.from('pengeluaran').insert([{ item, nominal, tanggal }]);
+
+            if (error) return alert('Gagal: ' + error.message);
+
+            await loadDataFromDatabase();
+            modalPengeluaran.hide();
+        }
+
+        // Delete button inside the edit modal itself — deletes whatever row is currently loaded into the form.
+        // Deleting is intentionally not available directly from the list card, only from here.
+        function hapusPengeluaran() {
+            let id = document.getElementById('idEditPengeluaran').value;
+            if (!id) return;
+            bukaKonfirmasiHapus('Hapus pengeluaran ini? Data yang dihapus tidak bisa dikembalikan.', async () => {
+                let { error } = await supabaseClient.from('pengeluaran').delete().eq('id', id);
+                if (error) return alert('Gagal menghapus: ' + error.message);
+                modalPengeluaran.hide();
+                await loadDataFromDatabase();
+            });
+        }
+
+        /* ============================================================
+           10. CATATAN
+           ============================================================ */
+        function renderCatatan() {
+            const container = document.getElementById('list-catatan'); container.innerHTML = '';
+            dataCatatan.forEach(c => {
+                container.innerHTML += `<div class="data-card flex-column align-items-stretch">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="icon-box icon-note"><i class="fas fa-thumbtack"></i></div>
+                        <div class="data-info flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <h6 class="m-0">${c.judul}</h6>
+                                <label class="text-muted fw-bold text-nowrap m-0" style="font-size:7pt;">${formatTgl(c.tanggal)}</label>
+                            </div>
+                            <p class="text-dark mt-2 mb-0">${c.isi}</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditCatatan(${c.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>
+                </div>`;
+            });
+        }
+
+        // Reset the modal to "add" mode
+        function bukaTambahCatatan() {
+            document.getElementById('idEditCatatan').value = '';
+            document.getElementById('titleCatatan').innerText = 'Buat Catatan';
+            document.getElementById('inputJudulCatatan').value = '';
+            document.getElementById('inputIsiCatatan').value = '';
+            document.getElementById('btnHapusCatatan').classList.add('d-none');
+            modalCatatan.show();
+        }
+
+        // Populate the same modal in "edit" mode from an existing row
+        function bukaEditCatatan(id) {
+            let c = dataCatatan.find(x => x.id === id);
+            if (!c) return;
+            document.getElementById('idEditCatatan').value = id;
+            document.getElementById('titleCatatan').innerText = 'Edit Catatan';
+            document.getElementById('inputJudulCatatan').value = c.judul;
+            document.getElementById('inputIsiCatatan').value = c.isi;
+            document.getElementById('btnHapusCatatan').classList.remove('d-none');
+            modalCatatan.show();
+        }
+
+        async function simpanCatatan() {
+            let idEdit = document.getElementById('idEditCatatan').value;
+            let judul = document.getElementById('inputJudulCatatan').value;
+            let isi = document.getElementById('inputIsiCatatan').value;
+
+            if (!judul || !isi) return alert('Lengkapi semua data!');
+
+            let { error } = idEdit
+                ? await supabaseClient.from('catatan').update({ judul, isi }).eq('id', idEdit)
+                : await supabaseClient.from('catatan').insert([{ judul, isi, tanggal: new Date().toISOString().split('T')[0] }]);
+
+            if (error) return alert('Gagal: ' + error.message);
+
+            await loadDataFromDatabase();
+            modalCatatan.hide();
+        }
+
+        function hapusCatatan() {
+            let id = document.getElementById('idEditCatatan').value;
+            if (!id) return;
+            bukaKonfirmasiHapus('Hapus catatan ini? Data yang dihapus tidak bisa dikembalikan.', async () => {
+                let { error } = await supabaseClient.from('catatan').delete().eq('id', id);
+                if (error) return alert('Gagal menghapus: ' + error.message);
+                modalCatatan.hide();
+                await loadDataFromDatabase();
+            });
+        }
+
+        /* ============================================================
+           11. AGENDA
+           ============================================================ */
+        // Shared card markup used by both the Beranda "Agenda Mendatang" preview and the full Agenda tab.
+        // The edit action only renders when showActions is true (i.e. on the full Agenda tab) —
+        // the Beranda preview is just a glance, editing happens where the full list lives.
+        // Deleting only happens inside the edit modal, never directly from this card.
+        function renderAgendaCardHTML(a, today, showActions) {
+            let diffDays = Math.ceil((new Date(a.tanggal) - today) / (1000 * 60 * 60 * 24));
+            let badge = diffDays < 0 ? 'Selesai' : (diffDays === 0 ? 'Hari Ini' : `H - ${diffDays}`);
+            return `<div class="data-card ${showActions ? 'flex-column align-items-stretch' : 'align-items-start'}">
+                <div class="d-flex align-items-start gap-3${showActions ? '' : ' w-100'}">
+                    <div class="icon-box icon-agenda"><i class="fas fa-calendar-day"></i></div>
+                    <div class="data-info flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <label class="fw-bold" style="font-size:10pt;">${a.nama}</label>
+                                <p class="text-muted" style="font-size:8pt;">${formatTgl(a.tanggal)}</p>
+                            </div>
+                            <span class="status-badge flex-shrink-0" style="font-size:7pt; background: var(--primary-soft); color: var(--primary-dark);">${badge}</span>
+                        </div>
+                        ${a.keterangan ? `<p class="text-muted mb-0 mt-1" style="font-size:8pt;">${a.keterangan}</p>` : ''}
+                    </div>
+                </div>
+                ${showActions ? `<button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditAgenda(${a.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>` : ''}
+            </div>`;
+        }
+
+        // Beranda "Agenda Mendatang": follows the same #filterBulan / #filterTahun as the rest of the dashboard
+        function renderAgendaDashboard() {
+            const container = document.getElementById('list-agenda-dashboard'); if (!container) return; container.innerHTML = '';
+
+            let bulanFilter = parseInt(document.getElementById('filterBulan').value);
+            let tahunFilter = parseInt(document.getElementById('filterTahun').value) || new Date().getFullYear();
+
+            let filtered = dataAgenda
+                .filter(a => {
+                    let d = new Date(a.tanggal);
+                    return d.getMonth() === bulanFilter && d.getFullYear() === tahunFilter;
+                })
+                .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+            let countEl = document.getElementById('agenda-dashboard-2bulan-count');
+            if (countEl) countEl.innerText = `Ada ${filtered.length} Agenda`;
+
+            // "Lihat Semua Agenda Lainnya" always stays visible — it's the way into the full
+            // Agenda tab regardless of whether this month has 0, a few, or many agenda items.
+            let seeMoreEl = document.getElementById('agenda-dashboard-see-more');
+            if (seeMoreEl) seeMoreEl.style.display = 'block';
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-muted text-center small py-2">Belum ada agenda di ${bulanNames[bulanFilter]} ${tahunFilter}.</p>`;
+                return;
+            }
+
+            let today = new Date(); today.setHours(0, 0, 0, 0);
+            filtered.slice(0, 2).forEach(a => { container.innerHTML += renderAgendaCardHTML(a, today, false); });
+        }
+
+        // Agenda tab: shows every agenda in the selected year, with edit/delete actions on each card
+        function renderAgenda() {
+            const container = document.getElementById('list-agenda'); if (!container) return; container.innerHTML = '';
+            let tahunFilter = parseInt(document.getElementById('filterTahunAgenda').value) || new Date().getFullYear();
+            let filtered = dataAgenda.filter(a => new Date(a.tanggal).getFullYear() === tahunFilter).sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+            let countEl = document.getElementById('agenda-2bulan-count');
+            if (countEl) countEl.innerText = `Ada ${filtered.length} Agenda`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada agenda tahun ${tahunFilter}.</p>`;
+                return;
+            }
+
+            let today = new Date(); today.setHours(0, 0, 0, 0);
+            filtered.forEach(a => { container.innerHTML += renderAgendaCardHTML(a, today, true); });
+        }
+
+        // Reset the modal to "add" mode
+        function bukaTambahAgenda() {
+            document.getElementById('idEditAgenda').value = '';
+            document.getElementById('titleAgenda').innerText = 'Tambah Agenda Warga';
+            document.getElementById('inputNamaAgenda').value = '';
+            document.getElementById('inputTanggalAgenda').valueAsDate = new Date();
+            document.getElementById('inputKetAgenda').value = '';
+            document.getElementById('btnHapusAgenda').classList.add('d-none');
+            modalAgenda.show();
+        }
+
+        // Populate the same modal in "edit" mode from an existing row
+        function bukaEditAgenda(id) {
+            let a = dataAgenda.find(x => x.id === id);
+            if (!a) return;
+            document.getElementById('idEditAgenda').value = id;
+            document.getElementById('titleAgenda').innerText = 'Edit Agenda Warga';
+            document.getElementById('inputNamaAgenda').value = a.nama;
+            document.getElementById('inputTanggalAgenda').value = a.tanggal;
+            document.getElementById('inputKetAgenda').value = a.keterangan || '';
+            document.getElementById('btnHapusAgenda').classList.remove('d-none');
+            modalAgenda.show();
+        }
+
+        async function simpanAgenda() {
+            let idEdit = document.getElementById('idEditAgenda').value;
+            let nama = document.getElementById('inputNamaAgenda').value.trim();
+            let tanggal = document.getElementById('inputTanggalAgenda').value;
+            let ket = document.getElementById('inputKetAgenda').value.trim();
+            if (!nama || !tanggal) return alert('Lengkapi!');
+
+            let { error } = idEdit
+                ? await supabaseClient.from('agenda').update({ nama, tanggal, keterangan: ket }).eq('id', idEdit)
+                : await supabaseClient.from('agenda').insert([{ nama, tanggal, keterangan: ket }]);
+            if (error) return alert('Gagal: ' + error.message);
+
+            await loadDataFromDatabase();
+            modalAgenda.hide();
+        }
+
+        function hapusAgenda() {
+            let id = document.getElementById('idEditAgenda').value;
+            if (!id) return;
+            bukaKonfirmasiHapus('Hapus agenda ini? Data yang dihapus tidak bisa dikembalikan.', async () => {
+                let { error } = await supabaseClient.from('agenda').delete().eq('id', id);
+                if (error) return alert('Gagal menghapus: ' + error.message);
+                modalAgenda.hide();
+                await loadDataFromDatabase();
+            });
+        }
+
+        /* ============================================================
+           12. REKENING (BANK INFO) & NOMINAL IPL
+           ============================================================ */
+        function getRekeningAktif(tahun) {
+            let exact = dataRekening.find(r => r.tahun === tahun);
+            if (exact) return exact;
+            let sebelumnya = dataRekening.filter(r => r.tahun <= tahun).sort((a, b) => b.tahun - a.tahun);
+            return sebelumnya[0] || dataRekening[0] || null;
+        }
+
+        function renderRekening() {
+            let tahun = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
+            let r = getRekeningAktif(tahun);
+            if (!r) return;
+
+            let kavlingLabel = r.kavling ? r.kavling : (dataWarga[0] ? dataWarga[0].id : 'Kavling 1');
+
+            document.getElementById('rekening-info').innerHTML = `<i class="fas fa-university me-1"></i>${r.bank} - ${r.pemilik}  |  ${kavlingLabel}`;
+            document.getElementById('rekening-norek').innerText = r.norek;
+            document.getElementById('rekening-periode-teks').innerText = `untuk periode ${tahun} September - ${tahun + 1} September`;
+
+            updateNominalIplDisplays();
+        }
+
+        // Nominal IPL is shown both on the Beranda header card (#headerNominalIpl) and the
+        // Tagihan Warga header (#wargaNominalIpl). Keep both in sync in one place so they never
+        // drift apart, whether the change came from "Atur IPL" or an individually-edited warga.
+        function updateNominalIplDisplays() {
+            let nominal = dataWarga[0] ? dataWarga[0].tagihan : totalKomponen();
+            let teks = formatRp(nominal);
+            let dashboardEl = document.getElementById('headerNominalIpl');
+            let wargaEl = document.getElementById('wargaNominalIpl');
+            if (dashboardEl) dashboardEl.innerText = teks;
+            if (wargaEl) wargaEl.innerText = teks;
+        }
+
+        function bukaEditRekening() {
+            let selTahun = document.getElementById('inputRekeningTahun');
+            let selKav = document.getElementById('inputRekeningKavling');
+            let tahunFilter = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
+
+            let yearOptions = "";
+            for (let y = TAHUN_MIN; y <= TAHUN_MAX; y++) { yearOptions += `<option value="${y}">${y}</option>`; }
+            selTahun.innerHTML = yearOptions;
+            selTahun.value = tahunFilter;
+
+            selKav.innerHTML = dataWarga.map(w => `<option value="${w.id}">${w.id} — ${w.nama}</option>`).join('');
+
+            isiFormRekeningDariTahun();
+            updatePeriodeLabel();
+            modalRekening.show();
+        }
+
+        function salinNoRekening() {
+            let noRek = document.getElementById('rekening-norek').innerText;
+            navigator.clipboard.writeText(noRek).then(() => {
+                alert('Nomor rekening berhasil disalin: ' + noRek);
+            }).catch(err => {
+                console.error('Gagal menyalin teks: ', err);
+            });
+        }
+
+        function updatePeriodeLabel() {
+            let tahun = parseInt(document.getElementById('inputRekeningTahun').value);
+            document.getElementById('previewPeriodeTeks').innerText = `untuk periode ${tahun} September - ${tahun + 1} September`;
+        }
+
+        function isiFormRekeningDariTahun() {
+            let tahun = parseInt(document.getElementById('inputRekeningTahun').value);
+            let r = dataRekening.find(r => r.tahun === tahun) || getRekeningAktif(tahun) || { bank: 'BRI', norek: '315201035014535', pemilik: 'Achmad Junaedi', kavling: dataWarga[0]?.id || 'Kavling 1' };
+
+            document.getElementById('inputRekeningBank').value = r.bank;
+            document.getElementById('inputRekeningNorek').value = r.norek;
+            document.getElementById('inputRekeningPemilik').value = r.pemilik;
+            if (r.kavling && document.getElementById('inputRekeningKavling')) {
+                document.getElementById('inputRekeningKavling').value = r.kavling;
+            }
+        }
+
+        async function simpanEditRekening() {
+            let tahun = parseInt(document.getElementById('inputRekeningTahun').value);
+            let bank = document.getElementById('inputRekeningBank').value.trim();
+            let norek = document.getElementById('inputRekeningNorek').value.trim();
+            let pemilik = document.getElementById('inputRekeningPemilik').value.trim();
+            let kavling = document.getElementById('inputRekeningKavling').value;
+
+            if (!bank || !norek || !pemilik) return alert('Lengkapi semua data!');
+
+            let { error } = await supabaseClient
+                .from('rekening')
+                .upsert({ tahun, bank, norek, pemilik, kavling }, { onConflict: 'tahun' });
+
+            if (error) return alert('Gagal: ' + error.message);
+
+            await loadDataFromDatabase();
+
+            // Jump the dashboard's active period to the year just edited so the change
+            // (nomor rekening, periode, dsb.) is visible immediately, instead of staying on
+            // whatever month/year was showing before and looking like nothing updated.
+            let selFilterTahun = document.getElementById('filterTahun');
+            if (selFilterTahun) {
+                selFilterTahun.value = tahun;
+                filterDashboard();
+            } else {
+                renderRekening();
+            }
+
+            modalRekening.hide();
+        }
+
+        /* ============================================================
+           13. KOMPONEN TAGIHAN ("ATUR IPL")
+           ============================================================ */
+        function totalKomponen() { return komponenTagihan.reduce((a, k) => a + (parseInt(k.nominal) || 0), 0); }
+
+        function renderKomponenRows() {
+            let el = document.getElementById('listKomponen');
+            el.innerHTML = '';
+            komponenTagihan.forEach((k, i) => {
+                el.innerHTML += `
+                    <div class="d-flex gap-2 align-items-center mb-2">
+                        <input type="text" class="form-control" style="flex: 1.4;" value="${k.nama}" oninput="updateKomponen(${i},'nama',this.value)">
+                        <input type="number" class="form-control" style="flex: 1;" value="${k.nominal}" oninput="updateKomponen(${i},'nominal',this.value)">
+                        <button type="button" class="btn-icon-sm" style="color: var(--coral);" onclick="hapusBarisKomponen(${i})"><i class="fas fa-trash"></i></button>
+                    </div>`;
+            });
+            document.getElementById('totalKomponenLabel').innerText = formatRp(totalKomponen());
+        }
+
+        function updateKomponen(i, field, val) {
+            komponenTagihan[i][field] = field === 'nominal' ? (parseInt(val) || 0) : val;
+            document.getElementById('totalKomponenLabel').innerText = formatRp(totalKomponen());
+        }
+        function tambahBarisKomponen() { komponenTagihan.push({ nama: '', nominal: 0 }); renderKomponenRows(); }
+        function hapusBarisKomponen(i) { if (komponenTagihan.length <= 1) return alert('Minimal 1 komponen.'); komponenTagihan.splice(i, 1); renderKomponenRows(); }
+        function bukaKomponenTagihan() { renderKomponenRows(); modalKomponen.show(); }
+
+        async function simpanKomponenTagihan() {
+            let total = totalKomponen();
+            if (total <= 0) return alert('Total harus > 0');
+            for (let w of dataWarga) {
+                await supabaseClient.from('warga').update({ tagihan: total }).eq('id', w.id);
+            }
+            await loadDataFromDatabase();
+            modalKomponen.hide();
+        }
+
+        /* ============================================================
+           14. EXPORT (WHATSAPP / PDF / CSV)
+           ============================================================ */
+        function shareWA() {
+            let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
+            let text = `*LAPORAN KAS IPL GPP*\nPeriode: ${bulanNames[bulan]} ${tahun}\n\n*Pemasukan:* ${document.getElementById('period-pemasukan').innerText}\n*Pengeluaran:* ${document.getElementById('period-pengeluaran').innerText}\n*${document.getElementById('periode-saldo-label').innerText}:* ${document.getElementById('period-saldoakhir').innerText}\n\n_Terima kasih atas partisipasi warga._ 🙏`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        function downloadPDF() {
+            document.getElementById('print-area').style.display = 'block';
+            let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
+            document.getElementById('pdf-periode').innerText = `${bulanNames[bulan]} ${tahun}`;
+            document.getElementById('pdf-saldo').innerText = document.getElementById('period-saldoakhir').innerText;
+            document.getElementById('pdf-masuk').innerText = document.getElementById('period-pemasukan').innerText;
+            document.getElementById('pdf-keluar').innerText = document.getElementById('period-pengeluaran').innerText;
+            html2pdf().set({ margin: 1, filename: `Laporan_${bulanNames[bulan]}_${tahun}.pdf`, html2canvas: { scale: 2 } }).from(document.getElementById('print-area')).save().then(() => { document.getElementById('print-area').style.display = 'none'; });
+        }
+
+        function downloadCSV() {
+            let rows = [['Tanggal', 'Tipe', 'Keterangan', 'Nominal']];
+            riwayatPemasukan.forEach(t => rows.push([t.tanggal, 'Pemasukan', `${t.idWarga} - ${t.ket}`, t.nominal]));
+            dataPengeluaran.forEach(t => rows.push([t.tanggal, 'Pengeluaran', t.item, -t.nominal]));
+            let csvContent = rows.map(r => r.join(';')).join('\r\n');
+            let blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a'); a.href = url; a.download = `Laporan_Kas.csv`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        /* ============================================================
+           15. NAVIGATION (TABS & SWIPE)
+           ============================================================ */
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.section-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            let navIndex = TAB_ORDER.indexOf(tabId);
+            if (navIndex < 0) navIndex = 0;
+
+            let navItems = document.querySelectorAll('.nav-item');
+            if (navItems[navIndex]) {
+                navItems[navIndex].classList.add('active');
+            }
+            window.scrollTo(0, 0);
+        }
+
+        // Swipe-to-navigate between bottom-nav tabs (Beranda <-> Warga <-> Keluar <-> Catatan <-> Agenda)
+        function initSwipeNavigation() {
+            let touchStartX = 0, touchStartY = 0;
+            const SWIPE_THRESHOLD = 55; // px, horizontal distance to count as a swipe
+
+            document.addEventListener('touchstart', function(e) {
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu')) return;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+
+            document.addEventListener('touchend', function(e) {
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu')) return;
+                // Ignore swipes while any modal is open, so users can still swipe inside dialogs normally
+                if (document.querySelector('.modal.show')) return;
+
+                let touchEndX = e.changedTouches[0].clientX;
+                let touchEndY = e.changedTouches[0].clientY;
+                let deltaX = touchEndX - touchStartX;
+                let deltaY = touchEndY - touchStartY;
+
+                // Require a mostly-horizontal gesture so vertical scrolling isn't hijacked
+                if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+
+                let activeSection = document.querySelector('.section-content.active');
+                if (!activeSection) return;
+                let currentIndex = TAB_ORDER.indexOf(activeSection.id);
+                if (currentIndex < 0) return;
+
+                let nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1; // swipe left = next tab
+                if (nextIndex < 0 || nextIndex >= TAB_ORDER.length) return;
+
+                let navItems = document.querySelectorAll('.nav-item');
+                switchTab(TAB_ORDER[nextIndex], navItems[nextIndex]);
+            }, { passive: true });
+        }
+    </script>
+</body>
+</html>
