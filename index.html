@@ -129,7 +129,17 @@
             border: 1px solid rgba(38, 51, 59, 0.05);
         }
         .summary-card .saldo-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin: 0; }
-        .summary-card .saldo-amount { font-size: 1.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; margin: 2px 0 16px 0; }
+        .summary-card .saldo-amount { font-size: 1.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; margin: 2px 0 10px 0; }
+        /* Swipeable area for the "Total Saldo" card — swipe left/right to switch between
+           Pemasukan / Kas / Pengeluaran without taking up extra horizontal space for a control. */
+        .saldo-swipe-area { touch-action: pan-y; transition: opacity 0.15s ease; }
+        .saldo-swipe-area.is-swiping { opacity: 0.4; }
+        .saldo-dots { display: flex; gap: 5px; }
+        .saldo-dot {
+            width: 6px; height: 6px; border-radius: 999px; background: rgba(38, 51, 59, 0.15);
+            cursor: pointer; transition: var(--transition-smooth);
+        }
+        .saldo-dot.active { width: 16px; background: var(--primary); }
         .split-bar { display: flex; width: 100%; height: 6px; border-radius: 10px; overflow: hidden; background: #EEF2F1; margin-bottom: 16px; }
         .split-bar .split-in { background: var(--success); height: 100%; }
         .split-bar .split-out { background: var(--danger); height: 100%; }
@@ -427,8 +437,15 @@
 
         <!-- Unified financial summary: saldo saat ini + pemasukan/pengeluaran comparison -->
         <div class="summary-card">
-            <p class="saldo-label" id="periode-saldo-label">Total Saldo Pemasukan (All Time)</p>
-            <h3 class="saldo-amount" id="period-saldoakhir">Rp 0</h3>
+            <div class="saldo-swipe-area" id="saldoSwipeArea">
+                <p class="saldo-label" id="periode-saldo-label">Total Saldo Pemasukan (All Time)</p>
+                <h3 class="saldo-amount" id="period-saldoakhir">Rp 0</h3>
+                <div class="saldo-dots" id="saldoDots">
+                    <span class="saldo-dot active" onclick="tampilkanSaldoIndex(0)"></span>
+                    <span class="saldo-dot" onclick="tampilkanSaldoIndex(1)"></span>
+                    <span class="saldo-dot" onclick="tampilkanSaldoIndex(2)"></span>
+                </div>
+            </div>
         <hr>
             <div class="stat-split">
                 <div class="stat-item">
@@ -965,6 +982,7 @@
 
             populateBulanTahun();
             initSwipeNavigation();
+            initSaldoSwipe();
             await loadDataFromDatabase();
         });
 
@@ -1250,10 +1268,6 @@
             let tahun = parseInt(document.getElementById('filterTahun').value);
             let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
-            let totalOutGlobal = dataPengeluaran.reduce((a, c) => a + parseInt(c.nominal), 0);
-            let saldoAllTime = saldoAwalSistem + totalInGlobal - totalOutGlobal;
-
             // "Total Kas Saat Ini" (header card) tracks only the Kas reserve: the "Kas" portion of
             // dues accumulated across every warga's paid months (all time), minus pengeluaran that
             // isn't Gaji/Sampah (those are pass-through, funded by their own matching dues portion).
@@ -1279,9 +1293,11 @@
                 splitOutEl.style.width = `${100 - inPct}%`;
             }
 
-            // "Total Saldo IPL (All Time)" is intentionally independent of the Beranda period filter —
-            // it always shows the running total across every transaction ever recorded, and its label never changes.
-            document.getElementById('period-saldoakhir').innerText = formatRp(saldoAllTime);
+            // Total Saldo card (top of Beranda) is a swipeable carousel between three all-time
+            // views (Pemasukan / Kas / Pengeluaran) — see renderTampilanSaldo(). It's intentionally
+            // independent of the Beranda period filter: whichever view is active always shows
+            // the running total across every transaction ever recorded.
+            renderTampilanSaldo();
 
             renderProgresBulanIni();
             renderRekening();
@@ -1908,6 +1924,71 @@
                 .reduce((a, c) => a + parseInt(c.nominal), 0);
         }
 
+        // Total Pengeluaran Rutin: only Gaji Keamanan + Operasional Sampah, all time — a pure
+        // informational total (not netted against anything), matching their own dedicated dues portion.
+        function hitungPengeluaranGajiSampah() {
+            return dataPengeluaran
+                .filter(p => isPengeluaranGajiSampah(p.item))
+                .reduce((a, c) => a + parseInt(c.nominal), 0);
+        }
+
+        // The Beranda "Total Saldo" card is a swipeable carousel between three all-time views —
+        // swipe left/right on the card, or tap a dot, to switch. All three are based on Komponen
+        // Tagihan IPL settings and lunas (paid) data per kavling across every month, and are
+        // independent of the period filter.
+        //   - Pemasukan: gross income collected, all time (no netting).
+        //   - Kas: the Kas reserve — same figure as the "Total Kas Saat Ini" header card.
+        //   - Pengeluaran: routine Gaji Keamanan + Operasional Sampah spend, all time.
+        const SALDO_MODES = ['pemasukan', 'kas', 'pengeluaran'];
+        let saldoModeIndex = 0;
+
+        function renderTampilanSaldo() {
+            let mode = SALDO_MODES[saldoModeIndex];
+            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+
+            if (mode === 'kas') {
+                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Kas (All Time)';
+                document.getElementById('period-saldoakhir').innerText = formatRp(saldoAwalSistem + hitungTotalKasDariIuran() - hitungPengeluaranNonGajiSampah());
+            } else if (mode === 'pengeluaran') {
+                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Pengeluaran (All Time)';
+                document.getElementById('period-saldoakhir').innerText = formatRp(hitungPengeluaranGajiSampah());
+            } else {
+                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Pemasukan (All Time)';
+                document.getElementById('period-saldoakhir').innerText = formatRp(saldoAwalSistem + totalInGlobal);
+            }
+
+            document.querySelectorAll('#saldoDots .saldo-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === saldoModeIndex);
+            });
+        }
+
+        // Jumps straight to a slide (used by tapping a dot). Clamped, not wraparound —
+        // swiping past either end simply has no further effect.
+        function tampilkanSaldoIndex(i) {
+            saldoModeIndex = Math.max(0, Math.min(SALDO_MODES.length - 1, i));
+            renderTampilanSaldo();
+        }
+
+        // Swipe left/right on the Total Saldo card to move one slide at a time
+        function initSaldoSwipe() {
+            let area = document.getElementById('saldoSwipeArea');
+            if (!area) return;
+            let startX = 0, startY = 0;
+
+            area.addEventListener('touchstart', function(e) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                area.classList.add('is-swiping');
+            }, { passive: true });
+
+            area.addEventListener('touchend', function(e) {
+                area.classList.remove('is-swiping');
+                let deltaX = e.changedTouches[0].clientX - startX;
+                let deltaY = e.changedTouches[0].clientY - startY;
+                if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
+                tampilkanSaldoIndex(saldoModeIndex + (deltaX < 0 ? 1 : -1));
+            }, { passive: true });
+        }
 
         function renderKomponenRows() {
             let el = document.getElementById('listKomponen');
@@ -1995,13 +2076,13 @@
             const SWIPE_THRESHOLD = 55; // px, horizontal distance to count as a swipe
 
             document.addEventListener('touchstart', function(e) {
-                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu')) return;
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area')) return;
                 touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;T
+                touchStartY = e.touches[0].clientY;
             }, { passive: true });
 
             document.addEventListener('touchend', function(e) {
-                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu')) return;
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area')) return;
                 // Ignore swipes while any modal is open, so users can still swipe inside dialogs normally
                 if (document.querySelector('.modal.show')) return;
 
