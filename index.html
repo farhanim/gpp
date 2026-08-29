@@ -10,8 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- html2pdf -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -334,7 +332,6 @@
             border-color: var(--primary); box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.18);
         }
 
-        #print-area { display: none; background: white; padding: 30px; color: #333; }
         .progress-track { height: 8px; background: #F3F4F6; border-radius: 20px; overflow: hidden; }
         .progress-fill { height: 100%; background: var(--primary); border-radius: 20px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -517,7 +514,7 @@
                         <i class="fas fa-download"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end dl-dropdown-menu">
-                        <li><a class="dropdown-item" href="#" onclick="downloadPDF(); return false;"><i class="fas fa-file-pdf"></i> PDF</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadImage(); return false;"><i class="fas fa-file-image"></i> Gambar (PNG)</a></li>
                         <li><a class="dropdown-item" href="#" onclick="downloadCSV(); return false;"><i class="fas fa-file-csv"></i> CSV</a></li>
                     </ul>
                 </div>
@@ -902,17 +899,6 @@
                 <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanKomponenTagihan()">Simpan &amp; Terapkan</button></div>
             </div>
         </div>
-    </div>
-
-    <!-- PRINT AREA -->
-    <div id="print-area">
-        <h2 style="text-align: center; color: #0A0A0A; margin-bottom: 5px;">LAPORAN KAS IPL GPP</h2>
-        <h4 style="text-align: center; color: #6B7280; margin-top: 0;" id="pdf-periode">Periode Terpilih</h4>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr><td style="padding: 12px; border: 1px solid #E5E7EB; background: #FBF7FC;"><strong>Saldo Akhir</strong></td><td style="padding: 12px; border: 1px solid #E5E7EB; font-weight: bold; color: #0A0A0A;" id="pdf-saldo"></td></tr>
-            <tr><td style="padding: 12px; border: 1px solid #E5E7EB;">Pemasukan Periode</td><td style="padding: 12px; border: 1px solid #E5E7EB; color: #365314; font-weight: bold;" id="pdf-masuk"></td></tr>
-            <tr><td style="padding: 12px; border: 1px solid #E5E7EB;">Pengeluaran Periode</td><td style="padding: 12px; border: 1px solid #E5E7EB; color: #991B1B; font-weight: bold;" id="pdf-keluar"></td></tr>
-        </table>
     </div>
 
     <!-- BOTTOM NAV -->
@@ -2327,28 +2313,223 @@
            ============================================================ */
         function shareWA() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
-            let text = `*LAPORAN KAS IPL GPP*\nPeriode: ${bulanNames[bulan]} ${tahun}\n\n*Pemasukan:* ${document.getElementById('period-pemasukan').innerText}\n*Pengeluaran:* ${document.getElementById('period-pengeluaran').innerText}\n*${document.getElementById('periode-saldo-label').innerText}:* ${document.getElementById('period-saldoakhir').innerText}\n\n_Terima kasih atas partisipasi warga._ 🙏`;
+
+            // Same all-time figures as the swipeable "Total Saldo" widget's three views
+            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let totalPemasukanAllTime = formatRp(saldoAwalSistem + totalInGlobal);
+            let totalKasAllTime = formatRp(hitungKasKumulatif());
+            let totalPengeluaranAllTime = formatRp(hitungPengeluaranGajiSampah());
+
+            // Kavling lunas untuk bulan aktif — sama seperti Progres Iuran di Beranda
+            let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, parseInt(bulan), parseInt(tahun))).length;
+            let totalKavling = dataWarga.length;
+
+            // Agenda dalam 2 bulan ke depan dari hari ini, sampai D-day
+            let today = new Date(); today.setHours(0, 0, 0, 0);
+            let batasAtas = new Date(today); batasAtas.setMonth(batasAtas.getMonth() + 2);
+            let agendaMendatang = dataAgenda
+                .filter(a => { let d = new Date(a.tanggal); return d >= today && d <= batasAtas; })
+                .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+            let teksAgenda;
+            if (agendaMendatang.length === 0) {
+                teksAgenda = 'Belum ada Agenda, mau ada agenda?';
+            } else {
+                teksAgenda = agendaMendatang.map(a => {
+                    let diffDays = Math.ceil((new Date(a.tanggal) - today) / (1000 * 60 * 60 * 24));
+                    let hDay = diffDays === 0 ? 'Hari Ini' : `H-${diffDays}`;
+                    return `- ${a.nama} (${formatTgl(a.tanggal)}) — ${hDay}`;
+                }).join('\n');
+            }
+
+            let text = `*LAPORAN KAS IPL GPP*\nPeriode: ${bulanNames[bulan]} ${tahun}\n\n` +
+                `*Ringkasan Semua Waktu*\n` +
+                `Total Pemasukan: ${totalPemasukanAllTime}\n` +
+                `Total Pengeluaran: ${totalPengeluaranAllTime}\n` +
+                `Total Kas: ${totalKasAllTime}\n\n` +
+                `*Bulan Ini*\n` +
+                `Pemasukan: ${document.getElementById('period-pemasukan').innerText}\n` +
+                `Kas Bulan Ini: ${document.getElementById('period-kasbulanini').innerText}\n` +
+                `Pengeluaran: ${document.getElementById('period-pengeluaran').innerText}\n` +
+                `Kavling Lunas: ${jumlahLunas}/${totalKavling}\n\n` +
+                `*Agenda Mendatang*\n${teksAgenda}\n\n` +
+                `_Terima kasih atas partisipasi warga._ `;
+
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
 
-        function downloadPDF() {
-            document.getElementById('print-area').style.display = 'block';
-            let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
-            document.getElementById('pdf-periode').innerText = `${bulanNames[bulan]} ${tahun}`;
-            document.getElementById('pdf-saldo').innerText = document.getElementById('period-saldoakhir').innerText;
-            document.getElementById('pdf-masuk').innerText = document.getElementById('period-pemasukan').innerText;
-            document.getElementById('pdf-keluar').innerText = document.getElementById('period-pengeluaran').innerText;
-            html2pdf().set({ margin: 1, filename: `Laporan_${bulanNames[bulan]}_${tahun}.pdf`, html2canvas: { scale: 2 } }).from(document.getElementById('print-area')).save().then(() => { document.getElementById('print-area').style.display = 'none'; });
+        // Every distinct (bulan, tahun) that has any recorded transaction (dues payment or
+        // pengeluaran/pemasukan entry), sorted chronologically, with each period's Uang Masuk /
+        // Uang Keluar / Uang Kas — the shared data source for both the PDF and CSV reports.
+        function getRingkasanBulanan() {
+            let periodeSet = new Set();
+            riwayatPemasukan.forEach(p => { let d = new Date(p.tanggal); periodeSet.add(d.getFullYear() * 12 + d.getMonth()); });
+            dataPengeluaran.forEach(p => { let d = new Date(p.tanggal); periodeSet.add(d.getFullYear() * 12 + d.getMonth()); });
+
+            return [...periodeSet].sort((a, b) => a - b).map(v => {
+                let tahun = Math.floor(v / 12), bulan = v % 12;
+                let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
+
+                let masukDues = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+                let masukAdHoc = dataPengeluaran.filter(t => t.tipe === 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+                let keluar = dataPengeluaran.filter(t => t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+
+                return { bulan, tahun, masuk: masukDues + masukAdHoc, keluar, kas: hitungKasBulanIni(bulan, tahun) };
+            });
         }
 
+        function downloadImage() {
+            let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
+
+            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let totalMasuk = formatRp(saldoAwalSistem + totalInGlobal);
+            let totalKeluar = formatRp(hitungPengeluaranGajiSampah());
+            let totalKas = formatRp(hitungKasKumulatif());
+
+            let bulanMasuk = document.getElementById('period-pemasukan').innerText;
+            let bulanKeluar = document.getElementById('period-pengeluaran').innerText;
+            let bulanKas = document.getElementById('period-kasbulanini').innerText;
+
+            let baris = getRingkasanBulanan();
+
+            // Drawn directly onto a <canvas> with the native 2D drawing API — no DOM-to-image
+            // conversion library involved. Kept compact (smaller canvas, lower pixel density)
+            // so the downloaded file stays small and easy to share.
+            let W = 480;
+            let padX = 16;
+            let rowH = 22;
+            let logoImg = new Image();
+            logoImg.crossOrigin = 'anonymous';
+            logoImg.onload = () => desenhar(logoImg);
+            logoImg.onerror = () => desenhar(null);
+            logoImg.src = document.querySelector('.app-logo img').src;
+
+            function desenhar(logo) {
+                let headerH = 46, barH = 24, summaryH = 50, tableHeaderH = 22;
+                let H = headerH + barH + summaryH + barH + summaryH + barH + tableHeaderH + (baris.length * rowH) + 14;
+
+                let SCALE = 1.5; // lower pixel density than before, keeps the PNG file small
+                let canvas = document.createElement('canvas');
+                canvas.width = W * SCALE; canvas.height = H * SCALE;
+                let ctx = canvas.getContext('2d');
+                ctx.scale(SCALE, SCALE);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, W, H);
+                ctx.textBaseline = 'middle';
+
+                let y = 0;
+
+                // Header: logo + title
+                let logoSize = 22;
+                if (logo) { try { ctx.drawImage(logo, padX, (headerH - logoSize) / 2, logoSize, logoSize); } catch (e) {} }
+                ctx.fillStyle = '#0A0A0A';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText('Laporan Keuangan Graha Pesona Pakansari', padX + logoSize + 8, headerH / 2);
+                ctx.strokeStyle = '#1E3A5F'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(0, headerH); ctx.lineTo(W, headerH); ctx.stroke();
+                y += headerH;
+
+                function sectionBar(label) {
+                    ctx.fillStyle = '#1E3A5F';
+                    ctx.fillRect(0, y, W, barH);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, W / 2, y + barH / 2);
+                    y += barH;
+                }
+
+                function threeCol(labels, values, colors) {
+                    let colW = W / 3;
+                    ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 1;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.strokeRect(colW * i, y, colW, summaryH);
+                        ctx.fillStyle = '#6B7280';
+                        ctx.font = '8px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(labels[i], colW * i + colW / 2, y + 15);
+                        ctx.fillStyle = colors[i];
+                        ctx.font = 'bold 11px Arial';
+                        ctx.fillText(values[i], colW * i + colW / 2, y + 32);
+                    }
+                    y += summaryH;
+                }
+
+                sectionBar('Data Keuangan (Semua Waktu)');
+                threeCol(['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas'], [totalMasuk, totalKeluar, totalKas], ['#16A34A', '#DC2626', '#0A0A0A']);
+
+                sectionBar(`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`);
+                threeCol(['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini'], [bulanMasuk, bulanKeluar, bulanKas], ['#16A34A', '#DC2626', '#0A0A0A']);
+
+                sectionBar('Data Setiap Bulan Tercatat');
+
+                // Table header
+                let cols = [0, W * 0.28, W * 0.52, W * 0.76, W];
+                ctx.fillStyle = '#1E3A5F';
+                ctx.fillRect(0, y, W, tableHeaderH);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ['Bulan', 'Uang Masuk', 'Uang Keluar', 'Uang Kas'].forEach((h, i) => {
+                    ctx.fillText(h, (cols[i] + cols[i + 1]) / 2, y + tableHeaderH / 2);
+                });
+                y += tableHeaderH;
+
+                // Monthly rows
+                baris.forEach(r => {
+                    let isAktif = r.bulan === bulan && r.tahun === tahun;
+                    ctx.fillStyle = isAktif ? '#EFF6FF' : '#ffffff';
+                    ctx.fillRect(0, y, W, rowH);
+                    ctx.strokeStyle = '#E5E7EB';
+                    ctx.strokeRect(0, y, W, rowH);
+                    ctx.font = isAktif ? 'bold 9px Arial' : '9px Arial';
+                    ctx.fillStyle = '#0A0A0A';
+                    ctx.fillText(`${bulanNames[r.bulan].slice(0, 3)} ${r.tahun}`, (cols[0] + cols[1]) / 2, y + rowH / 2);
+                    ctx.fillStyle = '#16A34A';
+                    ctx.fillText(formatRp(r.masuk), (cols[1] + cols[2]) / 2, y + rowH / 2);
+                    ctx.fillStyle = '#DC2626';
+                    ctx.fillText(formatRp(r.keluar), (cols[2] + cols[3]) / 2, y + rowH / 2);
+                    ctx.fillStyle = '#0A0A0A';
+                    ctx.fillText(formatRp(r.kas), (cols[3] + cols[4]) / 2, y + rowH / 2);
+                    y += rowH;
+                });
+
+                let a = document.createElement('a');
+                a.href = canvas.toDataURL('image/png');
+                a.download = `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.png`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            }
+        }
+
+
+
         function downloadCSV() {
-            let rows = [['Tanggal', 'Tipe', 'Keterangan', 'Nominal']];
-            riwayatPemasukan.forEach(t => rows.push([t.tanggal, 'Pemasukan', `${t.idWarga} - ${t.ket}`, t.nominal]));
-            dataPengeluaran.forEach(t => rows.push([t.tanggal, 'Pengeluaran', t.item, -t.nominal]));
+            let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
+            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let ringkasan = getRingkasanBulanan();
+
+            let rows = [];
+            rows.push(['Data Keuangan Graha Pesona Pakansari (Semua Waktu)']);
+            rows.push([]);
+            rows.push(['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas']);
+            rows.push([formatRp(saldoAwalSistem + totalInGlobal), formatRp(hitungPengeluaranGajiSampah()), formatRp(hitungKasKumulatif())]);
+            rows.push([]);
+            rows.push([`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`]);
+            rows.push(['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini']);
+            rows.push([document.getElementById('period-pemasukan').innerText, document.getElementById('period-pengeluaran').innerText, document.getElementById('period-kasbulanini').innerText]);
+            rows.push([]);
+            rows.push(['Data Setiap Bulan Tercatat']);
+            rows.push(['Bulan', 'Uang Masuk', 'Uang Keluar', 'Uang Kas', 'Aktif?']);
+            ringkasan.forEach(r => {
+                let isAktif = r.bulan === bulan && r.tahun === tahun;
+                rows.push([`${bulanNames[r.bulan]} ${r.tahun}`, formatRp(r.masuk), formatRp(r.keluar), formatRp(r.kas), isAktif ? 'Ya' : '']);
+            });
+
             let csvContent = rows.map(r => r.join(';')).join('\r\n');
             let blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
-            let a = document.createElement('a'); a.href = url; a.download = `Laporan_Kas.csv`;
+            let a = document.createElement('a'); a.href = url; a.download = `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.csv`;
             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
