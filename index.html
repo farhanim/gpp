@@ -140,6 +140,19 @@
             cursor: pointer; transition: var(--transition-smooth);
         }
         .saldo-dot.active { width: 16px; background: var(--primary); }
+        /* Komponen Tagihan IPL: each line item groups name/nominal/delete with its Pemasukan/
+           Pengeluaran type selector, so the type is visually tied to that specific line. */
+        /* Komponen Tagihan IPL tabs: switch which type of line item (Pemasukan/Pengeluaran) is
+           shown and being added to. Active tab color matches that type's convention elsewhere
+           in the app (green for Pemasukan, coral for Pengeluaran). */
+        .komponen-tabs { display: flex; gap: 8px; }
+        .komponen-tab-btn {
+            flex: 1; border: none; border-radius: 999px; padding: 10px; font-weight: 800;
+            font-size: 0.85rem; background: #F3F4F6; color: var(--text-muted);
+            transition: var(--transition-smooth);
+        }
+        .komponen-tab-btn.active[data-tipe="pengeluaran"] { background: var(--coral); color: #fff; }
+        .komponen-tab-btn.active[data-tipe="pemasukan"] { background: var(--success); color: #fff; }
         .split-bar { display: flex; width: 100%; height: 6px; border-radius: 10px; overflow: hidden; background: #EEF2F1; margin-bottom: 16px; }
         .split-bar .split-in { background: var(--success); height: 100%; }
         .split-bar .split-out { background: var(--danger); height: 100%; }
@@ -837,11 +850,34 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Berlaku Mulai</label>
+                        <div class="d-flex gap-2">
+                            <select id="inputKomponenBulan" class="form-select" onchange="gantiPeriodeKomponen()"></select>
+                            <select id="inputKomponenTahun" class="form-select" onchange="gantiPeriodeKomponen()"></select>
+                        </div>
+                        <small class="text-muted d-block mt-1">Perubahan hanya berlaku mulai bulan &amp; tahun ini — data bulan/tahun sebelumnya tidak ikut berubah.</small>
+                    </div>
+                    <div class="komponen-tabs mb-3">
+                        <button type="button" id="tabBtnPengeluaran" class="komponen-tab-btn" data-tipe="pengeluaran" onclick="gantiTabKomponen('pengeluaran')">Pengeluaran</button>
+                        <button type="button" id="tabBtnPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="gantiTabKomponen('pemasukan')">Pemasukan</button>
+                    </div>
                     <div id="listKomponen"></div>
                     <button type="button" class="btn-icon-sm mt-1" style="width: auto; padding: 0 14px; gap: 6px;" onclick="tambahBarisKomponen()"><i class="fas fa-plus"></i> Tambah Item</button>
-                    <div class="p-3 rounded-4 text-center mt-3" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
-                        <small class="text-dark fw-bold d-block mb-1">Total Tagihan Standar</small>
-                        <h3 class="text-dark m-0 fw-bold" id="totalKomponenLabel">Rp 0</h3>
+                    <div class="p-3 rounded-4 mt-3" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
+                        <div class="text-center mb-2">
+                            <small class="text-dark fw-bold d-block mb-1">Total Tagihan Standar</small>
+                            <h3 class="text-dark m-0 fw-bold" id="totalKomponenLabel">Rp 0</h3>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px solid rgba(20, 184, 166, 0.25);">
+                            <span class="small fw-bold" style="color: #16803D;"><i class="fas fa-circle" style="font-size: 6px;"></i> Pemasukan</span>
+                            <span class="small fw-bold" id="totalPemasukanLabel" style="color: #16803D;">Rp 0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="small fw-bold" style="color: var(--coral);"><i class="fas fa-circle" style="font-size: 6px;"></i> Pengeluaran</span>
+                            <span class="small fw-bold" id="totalPengeluaranLabel" style="color: var(--coral);">Rp 0</span>
+                        </div>
+                        <small class="text-muted d-block text-center mt-2 pt-2" id="infoPeriodeKomponen" style="border-top: 1px solid rgba(20, 184, 166, 0.25); font-size: 0.7rem;"></small>
                     </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanKomponenTagihan()">Simpan &amp; Terapkan</button></div>
@@ -902,13 +938,20 @@
         let dataCatatan = [];
         let dataAgenda = [];
         let dataRekening = [];
+        let dataKomponenTagihan = []; // persisted per-tahun Komponen Tagihan IPL rows (table: komponen_tagihan)
 
-        // Editable "Atur IPL" bill components (source of truth for nominal IPL until saved)
-        let komponenTagihan = [
-            { nama: 'Gaji Keamanan', nominal: 65000 },
-            { nama: 'Sampah', nominal: 35000 },
-            { nama: 'Kas', nominal: 25000 }
+        // "Atur IPL" modal's editable draft — populated from dataKomponenTagihan (or hardcoded
+        // fallback defaults) when the modal opens, for whichever tahun is selected in the modal.
+        // Immutable fallback used only when dataKomponenTagihan is completely empty (table doesn't
+        // exist yet, or nothing has ever been saved). Never mutated directly — komponenTagihan
+        // (the modal's live draft) starts as a copy of this but changes independently.
+        const KOMPONEN_TAGIHAN_DEFAULT = [
+            { nama: 'Gaji Keamanan', nominal: 65000, tipe: 'pengeluaran' },
+            { nama: 'Sampah', nominal: 35000, tipe: 'pengeluaran' },
+            { nama: 'Kas', nominal: 25000, tipe: 'pemasukan' }
         ];
+        let komponenTagihan = KOMPONEN_TAGIHAN_DEFAULT.map(k => ({ ...k }));
+        let komponenTabAktif = 'pengeluaran'; // which tab is showing in the "Atur IPL" modal
 
         // Beranda's #filterBulan / #filterTahun is the single shared "active period" for both
         // Progres Iuran and Tagihan Warga — the Warga tab's own pill mirrors the same value so
@@ -995,12 +1038,25 @@
 
         async function loadDataFromDatabase() {
             try {
-                let { data: warga } = await supabaseClient.from('warga').select('*');
-                let { data: pemasukan } = await supabaseClient.from('riwayat_pemasukan').select('*');
-                let { data: pengeluaran } = await supabaseClient.from('pengeluaran').select('*');
-                let { data: catatan } = await supabaseClient.from('catatan').select('*');
-                let { data: agenda } = await supabaseClient.from('agenda').select('*');
-                let { data: rekening } = await supabaseClient.from('rekening').select('*');
+                let warga_, pemasukan, pengeluaran, catatan, agenda, rekening, komponenRows;
+                ({ data: warga_ } = await supabaseClient.from('warga').select('*'));
+                ({ data: pemasukan } = await supabaseClient.from('riwayat_pemasukan').select('*'));
+                ({ data: pengeluaran } = await supabaseClient.from('pengeluaran').select('*'));
+                ({ data: catatan } = await supabaseClient.from('catatan').select('*'));
+                ({ data: agenda } = await supabaseClient.from('agenda').select('*'));
+                ({ data: rekening } = await supabaseClient.from('rekening').select('*'));
+
+                // komponen_tagihan is a newer, optional table (per-tahun breakdown of Gaji/Sampah/Kas).
+                // Query it defensively: if it doesn't exist yet (user hasn't created it), fall back to
+                // the old hardcoded defaults instead of breaking the rest of the data load.
+                try {
+                    let res = await supabaseClient.from('komponen_tagihan').select('*');
+                    komponenRows = res.error ? null : res.data;
+                } catch (e) {
+                    komponenRows = null;
+                }
+
+                let warga = warga_;
 
                 dataWarga = (warga || []).sort((a, b) => {
                     let numA = parseInt(a.id.replace(/\D/g, '')) || 0;
@@ -1012,16 +1068,17 @@
                     ...p,
                     idWarga: p.id_warga,
                     ket: p.keterangan || p.ket || 'Iuran Bulanan',
-                    bulanMulai: p.bulanMulai !== undefined ? p.bulanMulai : new Date(p.tanggal).getMonth(),
-                    tahunMulai: p.tahunMulai !== undefined ? p.tahunMulai : new Date(p.tanggal).getFullYear(),
-                    bulanAkhir: p.bulanAkhir !== undefined ? p.bulanAkhir : new Date(p.tanggal).getMonth(),
-                    tahunAkhir: p.tahunAkhir !== undefined ? p.tahunAkhir : new Date(p.tanggal).getFullYear()
+                    bulanMulai: p.bulanMulai != null ? p.bulanMulai : new Date(p.tanggal).getMonth(),
+                    tahunMulai: p.tahunMulai != null ? p.tahunMulai : new Date(p.tanggal).getFullYear(),
+                    bulanAkhir: p.bulanAkhir != null ? p.bulanAkhir : new Date(p.tanggal).getMonth(),
+                    tahunAkhir: p.tahunAkhir != null ? p.tahunAkhir : new Date(p.tanggal).getFullYear()
                 }));
 
                 dataPengeluaran = pengeluaran || [];
                 dataCatatan = catatan || [];
                 dataAgenda = agenda || [];
                 dataRekening = (rekening || []).length ? rekening : [{ tahun: 2026, bank: 'BRI', norek: '315201035014535', pemilik: 'Achmad Junaedi' }];
+                dataKomponenTagihan = komponenRows || [];
 
                 // Defensive fix: if the `rekening` table has no unique constraint on `tahun`,
                 // an upsert can insert a duplicate row instead of updating the existing one,
@@ -1808,8 +1865,15 @@
         // Nominal IPL is shown both on the Beranda header card (#headerNominalIpl) and the
         // Tagihan Warga header (#wargaNominalIpl). Keep both in sync in one place so they never
         // drift apart, whether the change came from "Atur IPL" or an individually-edited warga.
+        // Nominal IPL always reflects the STANDARD rate from Komponen Tagihan for the currently
+        // active period — the same persisted source hitungKasBulanIni()/hitungKasKumulatif() use —
+        // not any individual warga's own (possibly manually-overridden) tagihan. This is what
+        // guarantees "Nominal IPL" and "Total Tagihan Standar" in Atur IPL always agree.
         function updateNominalIplDisplays() {
-            let nominal = dataWarga[0] ? dataWarga[0].tagihan : totalKomponen();
+            let bulanAktif = parseInt(document.getElementById('filterBulan')?.value) || 0;
+            let tahunAktif = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
+            let komponenAktif = getKomponenTagihanAktif(bulanAktif, tahunAktif);
+            let nominal = komponenAktif.reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
             let teks = formatRp(nominal);
             let dashboardEl = document.getElementById('headerNominalIpl');
             let wargaEl = document.getElementById('wargaNominalIpl');
@@ -1896,39 +1960,73 @@
            ============================================================ */
         function totalKomponen() { return komponenTagihan.reduce((a, k) => a + (parseInt(k.nominal) || 0), 0); }
 
-        // The per-month "Kas" (reserve) portion of the dues, from the "Kas" line in Komponen Tagihan —
-        // as opposed to "Gaji Keamanan" and "Sampah", which are pass-through operational costs.
-        function getKasPerBulan() {
-            let kasItem = komponenTagihan.find(k => (k.nama || '').trim().toLowerCase().includes('kas'));
-            return kasItem ? (parseInt(kasItem.nominal) || 0) : 0;
+        // Returns the Komponen Tagihan rows active for a given bulan/tahun: an exact (bulan,tahun)
+        // match if that period was explicitly configured, otherwise the nearest earlier configured
+        // period (comparing tahun*12+bulan) — so a rate change only ever applies from the month it
+        // was set forward, never retroactively. Falls back to the modal's hardcoded defaults if
+        // dataKomponenTagihan is empty (table doesn't exist yet, or nothing saved yet).
+        function getKomponenTagihanAktif(bulan, tahun) {
+            if (!dataKomponenTagihan.length) return KOMPONEN_TAGIHAN_DEFAULT;
+            let target = tahun * 12 + bulan;
+            let periodeTersedia = [...new Set(dataKomponenTagihan.map(k => k.tahun * 12 + (k.bulan || 0)))].sort((a, b) => b - a);
+            let periodeDipakai = periodeTersedia.find(p => p <= target);
+            if (periodeDipakai === undefined) periodeDipakai = periodeTersedia[periodeTersedia.length - 1];
+            return dataKomponenTagihan.filter(k => (k.tahun * 12 + (k.bulan || 0)) === periodeDipakai);
         }
 
-        // A pengeluaran counts as "Gaji/Sampah" (routine pass-through, funded by its own matching
-        // portion of the dues) if its item name mentions either keyword — matches both the default
-        // recurring items and any manually-renamed variant of them. Used only for the "Total Saldo
-        // Pengeluaran (All Time)" card, which is specifically Gaji+Sampah (not Kas).
+        // The per-month "Kas" (reserve) portion of the dues for a given bulan/tahun: sum of every
+        // Komponen Tagihan line explicitly tagged tipe="pemasukan" for that period (currently just
+        // "Kas", but this supports adding more income-side components later without code changes).
+        function getKasPerBulan(bulan, tahun) {
+            let komponen = getKomponenTagihanAktif(bulan, tahun);
+            return komponen.filter(k => k.tipe === 'pemasukan').reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
+        }
+
+        // Returns the set of Komponen Tagihan item names, across every period ever configured, that
+        // are tagged as the given tipe ("pemasukan" or "pengeluaran") — trimmed + lowercased for
+        // matching. Kept across all periods (not just the current one) so a pengeluaran recorded
+        // years ago still matches even if the component was later renamed or resequenced.
+        function getNamaKomponenByTipe(tipe) {
+            let sumber = dataKomponenTagihan.length ? dataKomponenTagihan : KOMPONEN_TAGIHAN_DEFAULT;
+            return sumber.filter(k => k.tipe === tipe).map(k => (k.nama || '').trim().toLowerCase()).filter(Boolean);
+        }
+
+        // A pengeluaran counts as "Gaji/Sampah" if its item name contains (or is contained by) one
+        // of the Komponen Tagihan lines explicitly tagged tipe="pengeluaran" — e.g. "Gaji Keamanan
+        // (Mang Oni)" matches the shorter komponen name "Gaji Keamanan". Used only for the "Total
+        // Saldo Pengeluaran (All Time)" card, which is specifically Gaji+Sampah (not Kas).
         function isPengeluaranGajiSampah(itemNama) {
-            let nama = (itemNama || '').toLowerCase();
-            return nama.includes('gaji') || nama.includes('sampah');
+            let nama = (itemNama || '').trim().toLowerCase();
+            if (!nama) return false;
+            return getNamaKomponenByTipe('pengeluaran').some(kNama => nama.includes(kNama) || kNama.includes(nama));
         }
 
-        // A pengeluaran counts as "routine" (matches one of the DEFAULT_PENGELUARAN_BULANAN items —
-        // the same check the "Rutin" badge uses) if it's Gaji, Sampah, OR Uang Kas. This is broader
-        // than isPengeluaranGajiSampah() on purpose: "Uang Kas" is a bookkeeping entry recording that
+        // A pengeluaran counts as "routine" if its name matches ANY Komponen Tagihan line at all —
+        // Gaji, Sampah (tipe="pengeluaran"), OR Kas (tipe="pemasukan"). This is broader than
+        // isPengeluaranGajiSampah() on purpose: "Uang Kas" matches the "Kas" component even though
+        // Kas itself is income-typed, because "Uang Kas" is a bookkeeping entry recording that
         // month's Kas contribution being set aside, not a real drawdown — it's the same money
         // hitungTotalKasDariIuran() already counted as collected, so it must NOT also be subtracted
         // as an expense, or the Kas reserve gets double-deducted.
         function isPengeluaranRutin(itemNama) {
-            return DEFAULT_PENGELUARAN_BULANAN.some(d => d.item === itemNama);
+            let nama = (itemNama || '').trim().toLowerCase();
+            if (!nama) return false;
+            let semuaNamaKomponen = [...getNamaKomponenByTipe('pengeluaran'), ...getNamaKomponenByTipe('pemasukan')];
+            return semuaNamaKomponen.some(kNama => nama.includes(kNama) || kNama.includes(nama));
         }
 
-        // Total Kas accumulated from dues: for every warga, count every distinct month they've
-        // ever paid for (across all history, any year), then multiply by the per-month Kas portion.
-        // This isolates the "Kas" reserve fund from the Gaji/Sampah portions of what was collected.
+        // Total Kas accumulated from dues: for every warga, for every distinct month they've ever
+        // paid for (across all history, any month/year), add THAT MONTH'S OWN rate — not today's
+        // rate — so a rate change only affects months from the month it was set forward.
         function hitungTotalKasDariIuran() {
-            let kasPerBulan = getKasPerBulan();
-            let totalBulanLunas = dataWarga.reduce((sum, w) => sum + getBulanTerbayar(w.id).size, 0);
-            return totalBulanLunas * kasPerBulan;
+            let total = 0;
+            dataWarga.forEach(w => {
+                getBulanTerbayar(w.id).forEach(key => {
+                    let [tahunBayar, bulanBayar] = key.split('-').map(Number);
+                    total += getKasPerBulan(bulanBayar, tahunBayar);
+                });
+            });
+            return total;
         }
 
         // Cumulative Kas total, all time — the "Kas" portion of dues for every kavling-month ever
@@ -1939,11 +2037,11 @@
         }
 
         // "Kas Bulan Ini": scoped to ONE specific month/year — counts how many kavling are lunas
-        // for THAT dues month specifically (not the running all-time total), times the Kas portion.
-        // E.g. Kas=Rp25.000 and all 24 kavling lunas for Agustus → 24 × Rp25.000 = Rp600.000 for
-        // Agustus specifically. Intentionally independent of "Total Kas Saat Ini" on the header.
+        // for THAT dues month specifically (not the running all-time total), times THAT MONTH's Kas
+        // portion. E.g. Kas=Rp25.000 and all 24 kavling lunas for Agustus → 24 × Rp25.000 = Rp600.000
+        // for Agustus specifically. Intentionally independent of "Total Kas Saat Ini" on the header.
         function hitungKasBulanIni(bulan, tahun) {
-            let kasPerBulan = getKasPerBulan();
+            let kasPerBulan = getKasPerBulan(bulan, tahun);
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
             return jumlahLunas * kasPerBulan;
         }
@@ -2023,10 +2121,16 @@
             }, { passive: true });
         }
 
+        // Renders only the items matching the currently active tab (komponenTabAktif) — the
+        // original index into komponenTagihan is preserved so update/delete still target the
+        // right item even though not every item in the array is shown at once.
         function renderKomponenRows() {
             let el = document.getElementById('listKomponen');
             el.innerHTML = '';
+            let adaItem = false;
             komponenTagihan.forEach((k, i) => {
+                if (k.tipe !== komponenTabAktif) return;
+                adaItem = true;
                 el.innerHTML += `
                     <div class="d-flex gap-2 align-items-center mb-2">
                         <input type="text" class="form-control" style="flex: 1.4;" value="${k.nama}" oninput="updateKomponen(${i},'nama',this.value)">
@@ -2034,23 +2138,132 @@
                         <button type="button" class="btn-icon-sm" style="color: var(--coral);" onclick="hapusBarisKomponen(${i})"><i class="fas fa-trash"></i></button>
                     </div>`;
             });
+            if (!adaItem) {
+                el.innerHTML = `<p class="text-muted small text-center py-2">Belum ada item ${komponenTabAktif === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'}.</p>`;
+            }
+            updateTotalKomponenLabels();
+        }
+
+        function totalKomponenByTipe(tipe) {
+            return komponenTagihan.filter(k => k.tipe === tipe).reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
+        }
+
+        function updateTotalKomponenLabels() {
             document.getElementById('totalKomponenLabel').innerText = formatRp(totalKomponen());
+            document.getElementById('totalPemasukanLabel').innerText = formatRp(totalKomponenByTipe('pemasukan'));
+            document.getElementById('totalPengeluaranLabel').innerText = formatRp(totalKomponenByTipe('pengeluaran'));
         }
 
         function updateKomponen(i, field, val) {
             komponenTagihan[i][field] = field === 'nominal' ? (parseInt(val) || 0) : val;
-            document.getElementById('totalKomponenLabel').innerText = formatRp(totalKomponen());
+            updateTotalKomponenLabels();
         }
-        function tambahBarisKomponen() { komponenTagihan.push({ nama: '', nominal: 0 }); renderKomponenRows(); }
+
+        // New items always go into whichever tab is currently open
+        function tambahBarisKomponen() { komponenTagihan.push({ nama: '', nominal: 0, tipe: komponenTabAktif }); renderKomponenRows(); }
         function hapusBarisKomponen(i) { if (komponenTagihan.length <= 1) return alert('Minimal 1 komponen.'); komponenTagihan.splice(i, 1); renderKomponenRows(); }
-        function bukaKomponenTagihan() { renderKomponenRows(); modalKomponen.show(); }
+
+        function gantiTabKomponen(tipe) {
+            komponenTabAktif = tipe;
+            document.getElementById('tabBtnPengeluaran').classList.toggle('active', tipe === 'pengeluaran');
+            document.getElementById('tabBtnPemasukan').classList.toggle('active', tipe === 'pemasukan');
+            renderKomponenRows();
+        }
+
+        // Finds the most recently configured period across every saved Komponen Tagihan row —
+        // i.e. "whenever the rates were last actually changed" — so opening the modal shows that
+        // period by default instead of whatever the Beranda filter happens to be on.
+        function getPeriodeKomponenTerakhir() {
+            if (!dataKomponenTagihan.length) return null;
+            let terbaru = dataKomponenTagihan.reduce((a, k) => {
+                let nilai = k.tahun * 12 + (k.bulan || 0);
+                return nilai > a.nilai ? { nilai, bulan: k.bulan || 0, tahun: k.tahun } : a;
+            }, { nilai: -Infinity, bulan: 0, tahun: 0 });
+            return terbaru.nilai === -Infinity ? null : terbaru;
+        }
+
+        function bukaKomponenTagihan() {
+            let selBulan = document.getElementById('inputKomponenBulan');
+            let selTahun = document.getElementById('inputKomponenTahun');
+
+            let periodeTerakhir = getPeriodeKomponenTerakhir();
+            let bulanDefault = periodeTerakhir ? periodeTerakhir.bulan : (parseInt(document.getElementById('filterBulan')?.value) || 0);
+            let tahunDefault = periodeTerakhir ? periodeTerakhir.tahun : (parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear());
+
+            let monthOptions = ''; bulanNames.forEach((b, i) => { monthOptions += `<option value="${i}">${b}</option>`; });
+            selBulan.innerHTML = monthOptions;
+            selBulan.value = bulanDefault;
+
+            let yearOptions = '';
+            for (let y = TAHUN_MIN; y <= TAHUN_MAX; y++) { yearOptions += `<option value="${y}">${y}</option>`; }
+            selTahun.innerHTML = yearOptions;
+            selTahun.value = tahunDefault;
+
+            gantiPeriodeKomponen();
+            modalKomponen.show();
+        }
+
+        // "IPL berlaku dari ... hingga ..." — shows how long the selected period's rate has been
+        // (or will be) in effect, relative to today's actual date.
+        function updateInfoPeriodeKomponen() {
+            let bulan = parseInt(document.getElementById('inputKomponenBulan').value);
+            let tahun = parseInt(document.getElementById('inputKomponenTahun').value);
+            let now = new Date();
+            let bulanSekarang = now.getMonth();
+            let tahunSekarang = now.getFullYear();
+            let nilaiDipilih = tahun * 12 + bulan;
+            let nilaiSekarang = tahunSekarang * 12 + bulanSekarang;
+
+            let teks;
+            if (nilaiDipilih > nilaiSekarang) {
+                teks = `IPL akan berlaku mulai ${bulanNames[bulan]} ${tahun}`;
+            } else if (nilaiDipilih === nilaiSekarang) {
+                teks = `IPL berlaku sejak ${bulanNames[bulan]} ${tahun}`;
+            } else {
+                teks = `IPL berlaku dari ${bulanNames[bulan]} ${tahun} hingga ${bulanNames[bulanSekarang]} ${tahunSekarang}`;
+            }
+            document.getElementById('infoPeriodeKomponen').innerText = teks;
+        }
+
+        // Loads the draft for whichever bulan/tahun is selected in the modal — an exact match if
+        // that period has its own saved rows, otherwise the nearest earlier configured period's
+        // rows are shown as the starting point (edits here only ever save under the SELECTED
+        // period, never overwrite the period they were copied from). Always resets to the
+        // Pengeluaran tab first.
+        function gantiPeriodeKomponen() {
+            let bulan = parseInt(document.getElementById('inputKomponenBulan').value);
+            let tahun = parseInt(document.getElementById('inputKomponenTahun').value);
+            let sumber = getKomponenTagihanAktif(bulan, tahun);
+            komponenTagihan = sumber.length ? sumber.map(k => ({ nama: k.nama, nominal: parseInt(k.nominal) || 0, tipe: k.tipe === 'pemasukan' ? 'pemasukan' : 'pengeluaran' })) : KOMPONEN_TAGIHAN_DEFAULT.map(k => ({ ...k }));
+            updateInfoPeriodeKomponen();
+            gantiTabKomponen('pengeluaran');
+        }
 
         async function simpanKomponenTagihan() {
+            let bulan = parseInt(document.getElementById('inputKomponenBulan').value);
+            let tahun = parseInt(document.getElementById('inputKomponenTahun').value);
             let total = totalKomponen();
             if (total <= 0) return alert('Total harus > 0');
-            for (let w of dataWarga) {
-                await supabaseClient.from('warga').update({ tagihan: total }).eq('id', w.id);
+
+            // Persist this period's breakdown: replace whatever was saved for this exact bulan+tahun.
+            let { error: delError } = await supabaseClient.from('komponen_tagihan').delete().eq('tahun', tahun).eq('bulan', bulan);
+            if (delError) return alert('Gagal menyimpan (hapus lama): ' + delError.message + '\n\nPastikan tabel "komponen_tagihan" sudah dibuat di Supabase (dan sudah punya kolom "bulan").');
+
+            let rows = komponenTagihan.map(k => ({ tahun, bulan, nama: k.nama, nominal: parseInt(k.nominal) || 0, tipe: k.tipe === 'pemasukan' ? 'pemasukan' : 'pengeluaran' }));
+            let { error: insError } = await supabaseClient.from('komponen_tagihan').insert(rows);
+            if (insError) return alert('Gagal menyimpan: ' + insError.message);
+
+            // Only bulk-update every warga's current billing tagihan when editing the period that's
+            // actually active right now — setting up a future period's rates in advance shouldn't
+            // change what residents owe today.
+            let bulanAktifSekarang = parseInt(document.getElementById('filterBulan')?.value) || 0;
+            let tahunAktifSekarang = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
+            if (bulan === bulanAktifSekarang && tahun === tahunAktifSekarang) {
+                for (let w of dataWarga) {
+                    await supabaseClient.from('warga').update({ tagihan: total }).eq('id', w.id);
+                }
             }
+
             await loadDataFromDatabase();
             modalKomponen.hide();
         }
