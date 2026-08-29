@@ -683,6 +683,7 @@
                     <div class="p-4 rounded-4 text-center" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
                         <small class="text-dark fw-bold d-block mb-1" id="labelTotalBulan">Total: 1 Bulan</small>
                         <h2 class="text-dark m-0 fw-bold" id="totalBayarBulk">Rp 125.000</h2>
+                        <small class="text-muted d-block mt-1" id="infoTarifBulk"></small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -822,7 +823,6 @@
                     <input type="hidden" id="idxWargaEdit">
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Warga</label><input type="text" class="form-control" id="inputEditNama"></div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Kavling / ID</label><input type="text" class="form-control" id="inputEditKav" disabled></div>
-                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Tagihan per Bulan (Rp)</label><input type="number" class="form-control" id="inputEditTagihan"></div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanEditWarga()">Simpan</button></div>
             </div>
@@ -1432,13 +1432,26 @@
             kalkulasiBulk(); modalBayar.show();
         }
 
+        // Sums each selected month's OWN Komponen Tagihan rate (not a flat per-warga figure) —
+        // a bulk payment spanning a rate change now totals correctly instead of assuming every
+        // month costs the same as today.
         function kalkulasiBulk() {
             let m1 = parseInt(document.getElementById('startMonth').value), y1 = parseInt(document.getElementById('startYear').value);
             let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
             let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
-            if (diffMonths <= 0) { document.getElementById('labelTotalBulan').innerText = "Rentang Salah!"; document.getElementById('totalBayarBulk').innerText = "Rp 0"; return; }
+            if (diffMonths <= 0) { document.getElementById('labelTotalBulan').innerText = "Rentang Salah!"; document.getElementById('totalBayarBulk').innerText = "Rp 0"; document.getElementById('infoTarifBulk').innerText = ''; return; }
+
+            let bulanList = expandBulanRange(m1, y1, m2, y2);
+            let tarifPerBulan = bulanList.map(m => getTagihanPerBulan(m.bulan, m.tahun));
+            let total = tarifPerBulan.reduce((a, t) => a + t, 0);
+
             document.getElementById('labelTotalBulan').innerText = `Total: ${diffMonths} Bulan`;
-            document.getElementById('totalBayarBulk').innerText = formatRp(dataWarga[document.getElementById('idxWargaBayar').value].tagihan * diffMonths);
+            document.getElementById('totalBayarBulk').innerText = formatRp(total);
+
+            let tarifSeragam = tarifPerBulan.every(t => t === tarifPerBulan[0]);
+            document.getElementById('infoTarifBulk').innerText = tarifSeragam
+                ? `${formatRp(tarifPerBulan[0])}/bln`
+                : 'Tarif berbeda di sebagian bulan (mengikuti Komponen Tagihan saat itu)';
         }
 
         async function prosesBayar() {
@@ -1447,7 +1460,8 @@
             let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
             let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
             let ketStr = diffMonths === 1 ? `Iuran ${bulanNames[m1]} ${y1}` : `Iuran ${bulanNames[m1]} ${y1.toString().slice(-2)} - ${bulanNames[m2]} ${y2.toString().slice(-2)} (${diffMonths}bln)`;
-            let nominal = w.tagihan * diffMonths;
+            // Same per-month summed calculation as kalkulasiBulk(), so what's saved always matches what was shown
+            let nominal = expandBulanRange(m1, y1, m2, y2).reduce((a, m) => a + getTagihanPerBulan(m.bulan, m.tahun), 0);
             let tanggal = document.getElementById('tglBayarActual').value;
 
             let { error } = await supabaseClient
@@ -1472,7 +1486,8 @@
         function bukaDetailWarga(index) {
             idxWargaDetail = index; tahunDetailAktif = new Date().getFullYear();
             document.getElementById('detailNamaWarga').innerText = dataWarga[index].nama;
-            document.getElementById('detailKavWarga').innerText = `${dataWarga[index].id} • ${formatRp(dataWarga[index].tagihan)}/bln`;
+            let now = new Date();
+            document.getElementById('detailKavWarga').innerText = `${dataWarga[index].id} • ${formatRp(getTagihanPerBulan(now.getMonth(), now.getFullYear()))}/bln`;
             renderDetailGrid(); modalDetail.show();
         }
 
@@ -1498,7 +1513,6 @@
             document.getElementById('idxWargaEdit').value = index;
             document.getElementById('inputEditNama').value = dataWarga[index].nama;
             document.getElementById('inputEditKav').value = dataWarga[index].id;
-            document.getElementById('inputEditTagihan').value = dataWarga[index].tagihan;
             modalEdit.show();
         }
 
@@ -1506,11 +1520,10 @@
             let idx = parseInt(document.getElementById('idxWargaEdit').value);
             let w = dataWarga[idx];
             let nama = document.getElementById('inputEditNama').value;
-            let tagihan = parseInt(document.getElementById('inputEditTagihan').value);
 
             let { error } = await supabaseClient
                 .from('warga')
-                .update({ nama, tagihan })
+                .update({ nama })
                 .eq('id', w.id);
 
             if (error) return alert('Gagal: ' + error.message);
@@ -1886,9 +1899,7 @@
         function updateNominalIplDisplays() {
             let bulanAktif = parseInt(document.getElementById('filterBulan')?.value) || 0;
             let tahunAktif = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
-            let komponenAktif = getKomponenTagihanAktif(bulanAktif, tahunAktif);
-            let nominal = komponenAktif.reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
-            let teks = formatRp(nominal);
+            let teks = formatRp(getTagihanPerBulan(bulanAktif, tahunAktif));
             let dashboardEl = document.getElementById('headerNominalIpl');
             let wargaEl = document.getElementById('wargaNominalIpl');
             if (dashboardEl) dashboardEl.innerText = teks;
@@ -1986,6 +1997,13 @@
             let periodeDipakai = periodeTersedia.find(p => p <= target);
             if (periodeDipakai === undefined) periodeDipakai = periodeTersedia[periodeTersedia.length - 1];
             return dataKomponenTagihan.filter(k => (k.tahun * 12 + (k.bulan || 0)) === periodeDipakai);
+        }
+
+        // Full standard IPL rate (every Komponen Tagihan line combined, Pemasukan + Pengeluaran)
+        // for a given bulan/tahun — the single source of truth for billing calculations (bulk
+        // payment totals) and the Nominal IPL displays, replacing the old static per-warga rate.
+        function getTagihanPerBulan(bulan, tahun) {
+            return getKomponenTagihanAktif(bulan, tahun).reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
         }
 
         // The per-month "Kas" (reserve) portion of the dues for a given bulan/tahun: sum of every
