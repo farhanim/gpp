@@ -559,7 +559,7 @@
     <!-- PENGELUARAN -->
     <div id="pengeluaran" class="section-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="text-dark m-0 fw-bold">Pengeluaran</h4>
+            <h4 class="text-dark m-0 fw-bold">Transaksi</h4>
             <button class="btn-add-floating" onclick="bukaTambahPengeluaran()"><i class="fas fa-plus"></i> Catat</button>
         </div>
 
@@ -571,11 +571,18 @@
             <button type="button" class="btn-icon-sm" onclick="geserBulanPengeluaranFilter(1)"><i class="fas fa-chevron-right fa-xs"></i></button>
         </div>
 
-        <!-- Monthly kas summary for this page's active month -->
+        <!-- Reused from Beranda: swipeable all-time Total Saldo + period stat-split -->
         <div class="summary-card">
-            <p class="saldo-label">Ringkasan Kas <span id="pengeluaran-summary-bulanlabel"></span></p>
-            <h3 class="saldo-amount" id="pengeluaran-summary-net">Rp 0</h3>
-            <hr>
+            <div class="saldo-swipe-area" id="saldoSwipeAreaTrx">
+                <p class="saldo-label" id="periode-saldo-label-trx">Total Saldo Pemasukan (All Time)</p>
+                <h3 class="saldo-amount" id="period-saldoakhir-trx">Rp 0</h3>
+                <div class="saldo-dots" id="saldoDotsTrx">
+                    <span class="saldo-dot active" onclick="tampilkanSaldoIndex(0)"></span>
+                    <span class="saldo-dot" onclick="tampilkanSaldoIndex(1)"></span>
+                    <span class="saldo-dot" onclick="tampilkanSaldoIndex(2)"></span>
+                </div>
+            </div>
+        <hr>
             <div class="stat-split">
                 <div class="stat-item">
                     <div class="stat-icon in"><i class="fas fa-arrow-down"></i></div>
@@ -603,7 +610,10 @@
             </div>
         </div>
 
-        <div id="pengeluaran-default-banner"></div>
+        <div class="komponen-tabs mb-3">
+            <button type="button" id="trxTabBtnPengeluaran" class="komponen-tab-btn active" data-tipe="pengeluaran" onclick="gantiTabTransaksi('pengeluaran')">Pengeluaran</button>
+            <button type="button" id="trxTabBtnPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="gantiTabTransaksi('pemasukan')">Pemasukan</button>
+        </div>
 
         <div id="list-pengeluaran"></div>
     </div>
@@ -687,18 +697,25 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title fw-bold" id="titlePengeluaran">Catat Pengeluaran</h4>
+                    <h4 class="modal-title fw-bold" id="titlePengeluaran">Catat Transaksi</h4>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
                     <input type="hidden" id="idEditPengeluaran">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Tipe</label>
+                        <div class="komponen-tabs">
+                            <button type="button" id="trxFormTabPengeluaran" class="komponen-tab-btn" data-tipe="pengeluaran" onclick="pilihTipeTransaksi('pengeluaran')">Pengeluaran</button>
+                            <button type="button" id="trxFormTabPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="pilihTipeTransaksi('pemasukan')">Pemasukan</button>
+                        </div>
+                    </div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama / Keterangan</label><input type="text" class="form-control" id="inputNamaPengeluaran"  placeholder="contoh: Token listrik"></div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nominal (Rp)</label><input type="number" class="form-control" id="inputNominalPengeluaran"  placeholder="Rp 0"></div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Tanggal</label><input type="date" class="form-control" id="inputTanggalPengeluaran"></div>
                 </div>
                 <div class="modal-footer d-flex gap-2">
                     <button type="button" class="btn-icon-sm d-none" id="btnHapusPengeluaran" style="width: auto; padding: 0 16px; color: var(--coral);" onclick="hapusPengeluaran()"><i class="fas fa-trash"></i></button>
-                    <button type="button" class="btn btn-action flex-grow-1 m-0 btn-pdf" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanPengeluaran()">Simpan Pengeluaran</button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0 btn-pdf" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanPengeluaran()">Simpan Transaksi</button>
                 </div>
             </div>
         </div>
@@ -900,7 +917,7 @@
     <div class="bottom-nav">
         <a href="javascript:void(0);" class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fas fa-home"></i>Beranda</a>
         <a href="javascript:void(0);" class="nav-item" onclick="switchTab('warga', this)"><i class="fas fa-users"></i>Warga</a>
-        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('pengeluaran', this)"><i class="fas fa-notes-medical"></i>Keluar</a>
+        <a href="javascript:void(0);" class="nav-item" onclick="switchTab('pengeluaran', this)"><i class="fas fa-notes-medical"></i>Transaksi</a>
         <a href="javascript:void(0);" class="nav-item" onclick="switchTab('catatan', this)"><i class="fas fa-pencil-alt"></i>Catatan</a>
         <a href="javascript:void(0);" class="nav-item" onclick="switchTab('agenda', this)"><i class="fas fa-calendar-check"></i>Agenda</a>
     </div>
@@ -960,6 +977,8 @@
         // from the dues period is expected.
         let pengeluaranActiveMonth = new Date().getMonth();
         let pengeluaranActiveYear = new Date().getFullYear();
+        let trxTabAktif = 'pengeluaran'; // which type tab is showing in the Transaksi list
+        let trxFormTipe = 'pengeluaran'; // which type is selected in the Catat/Edit Transaksi modal
 
         // Bootstrap modal instances (assigned on DOMContentLoaded)
         let modalBayar = null, modalDetail = null, modalEdit = null, modalRekening = null, modalKomponen = null, modalAgenda = null;
@@ -1503,6 +1522,10 @@
         /* ============================================================
            9. PENGELUARAN
            ============================================================ */
+        // Transaksi (formerly Pengeluaran) page: shows one type at a time via trxTabAktif,
+        // filtered to the page's own active month/year. The stat-split reuses Beranda's styling:
+        // Pemasukan combines warga dues + ad-hoc pemasukan transactions; Pengeluaran is ad-hoc
+        // pengeluaran transactions only; Kas Bulan Ini stays the dues-based Kas formula, unchanged.
         function renderPengeluaran() {
             const container = document.getElementById('list-pengeluaran'); if (!container) return; container.innerHTML = '';
 
@@ -1510,87 +1533,76 @@
             document.getElementById('filterTahunPengeluaran').value = pengeluaranActiveYear;
 
             let bulan = pengeluaranActiveMonth, tahun = pengeluaranActiveYear;
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            let pengeluaranBulanIni = dataPengeluaran.filter(p => {
+            let transaksiBulanIni = dataPengeluaran.filter(p => {
                 let d = new Date(p.tanggal);
                 return d.getMonth() === bulan && d.getFullYear() === tahun;
             });
 
-            // Which default recurring items are still missing this month (offered, not yet saved)
-            let namaTersimpan = pengeluaranBulanIni.map(p => p.item);
-            let defaultBelumAda = DEFAULT_PENGELUARAN_BULANAN.filter(d => !namaTersimpan.includes(d.item));
+            let pemasukanAdHoc = transaksiBulanIni.filter(p => p.tipe === 'pemasukan');
+            let pengeluaranBulanIni = transaksiBulanIni.filter(p => p.tipe !== 'pemasukan'); // default/missing tipe = pengeluaran
 
-            let bannerEl = document.getElementById('pengeluaran-default-banner');
-            if (bannerEl) {
-                if (defaultBelumAda.length > 0) {
-                    bannerEl.innerHTML = `
-                        <div class="default-pengeluaran-banner">
-                            <p>Pengeluaran rutin ${bulanNames[bulan]} ${tahun} belum tercatat (${defaultBelumAda.map(d => d.item).join(', ')}).</p>
-                            <button type="button" onclick="tambahDefaultPengeluaranBulanIni()">+ Tambah Rutin</button>
-                        </div>`;
-                } else {
-                    bannerEl.innerHTML = '';
-                }
-            }
-
-            // Monthly kas summary (Pemasukan vs Pengeluaran) for this page's active month
-            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
-            let inBulanIni = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            // Period stat-split: Pemasukan = warga dues + ad-hoc pemasukan; Pengeluaran = ad-hoc pengeluaran only
+            let inDues = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let inAdHoc = pemasukanAdHoc.reduce((a, c) => a + parseInt(c.nominal), 0);
             let outBulanIni = pengeluaranBulanIni.reduce((a, c) => a + parseInt(c.nominal), 0);
-            document.getElementById('pengeluaran-summary-bulanlabel').innerText = `${bulanNames[bulan]} ${tahun}`;
-            document.getElementById('pengeluaran-summary-in').innerText = formatRp(inBulanIni);
+            document.getElementById('pengeluaran-summary-in').innerText = formatRp(inDues + inAdHoc);
             document.getElementById('pengeluaran-summary-out').innerText = formatRp(outBulanIni);
-            document.getElementById('pengeluaran-summary-net').innerText = formatRp(inBulanIni - outBulanIni);
-            document.getElementById('pengeluaran-summary-kas').innerText = formatRp(inBulanIni - outBulanIni);
+            document.getElementById('pengeluaran-summary-kas').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
 
-            if (pengeluaranBulanIni.length === 0) {
-                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada pengeluaran tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
+            // Reused all-time swipeable widget (same data/state as Beranda's copy)
+            renderTampilanSaldo();
+
+            let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc : pengeluaranBulanIni;
+
+            if (daftar.length === 0) {
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${trxTabAktif === 'pemasukan' ? 'pemasukan' : 'pengeluaran'} tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
                 return;
             }
 
-            [...pengeluaranBulanIni].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)).forEach(p => {
+            [...daftar].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)).forEach(p => {
                 let isRutin = DEFAULT_PENGELUARAN_BULANAN.some(d => d.item === p.item);
+                let isPemasukan = p.tipe === 'pemasukan';
                 container.innerHTML += `<div class="data-card flex-column align-items-stretch">
                     <div class="d-flex align-items-start gap-3">
-                        <div class="icon-box icon-expense"><i class="fas fa-receipt"></i></div>
+                        <div class="icon-box ${isPemasukan ? 'icon-paid' : 'icon-expense'}"><i class="fas fa-${isPemasukan ? 'hand-holding-dollar' : 'receipt'}"></i></div>
                         <div class="data-info flex-grow-1">
                             <label class="fw-bold" style="font-style:9pt;">${p.item}${isRutin ? '<span class="tag-rutin">Rutin</span>' : ''}</label>
                             <p style="font-style:6pt;">${formatTgl(p.tanggal)}</p>
                         </div>
-                        <div class="fw-bold text-nowrap" style="color: var(--coral); font-style:8pt!important;">-${formatRp(p.nominal).replace('Rp', '')}</div>
+                        <div class="fw-bold text-nowrap" style="color: ${isPemasukan ? '#16803D' : 'var(--coral)'}; font-style:8pt!important;">${isPemasukan ? '+' : '-'}${formatRp(p.nominal).replace('Rp', '')}</div>
                     </div>
                     <button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditPengeluaran(${p.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>
                 </div>`;
             });
         }
 
-        async function tambahDefaultPengeluaranBulanIni() {
-            let bulan = pengeluaranActiveMonth, tahun = pengeluaranActiveYear;
-            let pengeluaranBulanIni = dataPengeluaran.filter(p => {
-                let d = new Date(p.tanggal);
-                return d.getMonth() === bulan && d.getFullYear() === tahun;
-            });
-            let namaTersimpan = pengeluaranBulanIni.map(p => p.item);
-            let defaultBelumAda = DEFAULT_PENGELUARAN_BULANAN.filter(d => !namaTersimpan.includes(d.item));
-            if (defaultBelumAda.length === 0) return;
-
-            let tanggal = new Date(tahun, bulan, 1).toISOString().split('T')[0];
-            let rows = defaultBelumAda.map(d => ({ item: d.item, nominal: d.nominal, tanggal }));
-
-            let { error } = await supabaseClient.from('pengeluaran').insert(rows);
-            if (error) return alert('Gagal menambah pengeluaran rutin: ' + error.message);
-
-            await loadDataFromDatabase();
+        // Switches which type of transaction the list below shows
+        function gantiTabTransaksi(tipe) {
+            trxTabAktif = tipe;
+            document.getElementById('trxTabBtnPengeluaran').classList.toggle('active', tipe === 'pengeluaran');
+            document.getElementById('trxTabBtnPemasukan').classList.toggle('active', tipe === 'pemasukan');
+            renderPengeluaran();
         }
 
-        // Reset the modal to "add" mode (blank fields, hidden delete button)
+        // Switches the Pemasukan/Pengeluaran selector inside the Catat/Edit Transaksi modal
+        function pilihTipeTransaksi(tipe) {
+            trxFormTipe = tipe;
+            document.getElementById('trxFormTabPengeluaran').classList.toggle('active', tipe === 'pengeluaran');
+            document.getElementById('trxFormTabPemasukan').classList.toggle('active', tipe === 'pemasukan');
+        }
+
+        // Reset the modal to "add" mode (blank fields, hidden delete button); defaults to whichever
+        // tab is currently showing on the page
         function bukaTambahPengeluaran() {
             document.getElementById('idEditPengeluaran').value = '';
-            document.getElementById('titlePengeluaran').innerText = 'Catat Pengeluaran';
+            document.getElementById('titlePengeluaran').innerText = 'Catat Transaksi';
             document.getElementById('inputNamaPengeluaran').value = '';
             document.getElementById('inputNominalPengeluaran').value = '';
             document.getElementById('inputTanggalPengeluaran').valueAsDate = new Date();
             document.getElementById('btnHapusPengeluaran').classList.add('d-none');
+            pilihTipeTransaksi(trxTabAktif);
             modalPengeluaran.show();
         }
 
@@ -1599,11 +1611,12 @@
             let p = dataPengeluaran.find(x => x.id === id);
             if (!p) return;
             document.getElementById('idEditPengeluaran').value = id;
-            document.getElementById('titlePengeluaran').innerText = 'Edit Pengeluaran';
+            document.getElementById('titlePengeluaran').innerText = 'Edit Transaksi';
             document.getElementById('inputNamaPengeluaran').value = p.item;
             document.getElementById('inputNominalPengeluaran').value = p.nominal;
             document.getElementById('inputTanggalPengeluaran').value = p.tanggal;
             document.getElementById('btnHapusPengeluaran').classList.remove('d-none');
+            pilihTipeTransaksi(p.tipe === 'pemasukan' ? 'pemasukan' : 'pengeluaran');
             modalPengeluaran.show();
         }
 
@@ -1612,12 +1625,13 @@
             let item = document.getElementById('inputNamaPengeluaran').value;
             let nominal = parseInt(document.getElementById('inputNominalPengeluaran').value);
             let tanggal = document.getElementById('inputTanggalPengeluaran').value;
+            let tipe = trxFormTipe;
 
             if (!item || !tanggal || isNaN(nominal)) return alert('Lengkapi semua data!');
 
             let { error } = idEdit
-                ? await supabaseClient.from('pengeluaran').update({ item, nominal, tanggal }).eq('id', idEdit)
-                : await supabaseClient.from('pengeluaran').insert([{ item, nominal, tanggal }]);
+                ? await supabaseClient.from('pengeluaran').update({ item, nominal, tanggal, tipe }).eq('id', idEdit)
+                : await supabaseClient.from('pengeluaran').insert([{ item, nominal, tanggal, tipe }]);
 
             if (error) return alert('Gagal: ' + error.message);
 
@@ -1630,7 +1644,7 @@
         function hapusPengeluaran() {
             let id = document.getElementById('idEditPengeluaran').value;
             if (!id) return;
-            bukaKonfirmasiHapus('Hapus pengeluaran ini? Data yang dihapus tidak bisa dikembalikan.', async () => {
+            bukaKonfirmasiHapus('Hapus transaksi ini? Data yang dihapus tidak bisa dikembalikan.', async () => {
                 let { error } = await supabaseClient.from('pengeluaran').delete().eq('id', id);
                 if (error) return alert('Gagal menghapus: ' + error.message);
                 modalPengeluaran.hide();
@@ -2073,23 +2087,34 @@
         const SALDO_MODES = ['pemasukan', 'kas', 'pengeluaran'];
         let saldoModeIndex = 0;
 
+        // Writes the current saldo view into every matching element id passed in, skipping any
+        // that don't exist on the page currently rendered (Beranda's ids always exist; the
+        // Transaksi page's "-trx" ids only matter once that section is in the DOM, which it
+        // always is in this single-page app, but the guard keeps this safe either way).
+        function setTeksById(ids, teks) {
+            ids.forEach(id => { let el = document.getElementById(id); if (el) el.innerText = teks; });
+        }
+
         function renderTampilanSaldo() {
             let mode = SALDO_MODES[saldoModeIndex];
             let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
 
+            let labelIds = ['periode-saldo-label', 'periode-saldo-label-trx'];
+            let amountIds = ['period-saldoakhir', 'period-saldoakhir-trx'];
+
             if (mode === 'kas') {
-                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Kas (All Time)';
-                document.getElementById('period-saldoakhir').innerText = formatRp(hitungKasKumulatif());
+                setTeksById(labelIds, 'Total Saldo Kas (All Time)');
+                setTeksById(amountIds, formatRp(hitungKasKumulatif()));
             } else if (mode === 'pengeluaran') {
-                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Pengeluaran (All Time)';
-                document.getElementById('period-saldoakhir').innerText = formatRp(hitungPengeluaranGajiSampah());
+                setTeksById(labelIds, 'Total Saldo Pengeluaran (All Time)');
+                setTeksById(amountIds, formatRp(hitungPengeluaranGajiSampah()));
             } else {
-                document.getElementById('periode-saldo-label').innerText = 'Total Saldo Pemasukan (All Time)';
-                document.getElementById('period-saldoakhir').innerText = formatRp(saldoAwalSistem + totalInGlobal);
+                setTeksById(labelIds, 'Total Saldo Pemasukan (All Time)');
+                setTeksById(amountIds, formatRp(saldoAwalSistem + totalInGlobal));
             }
 
-            document.querySelectorAll('#saldoDots .saldo-dot').forEach((dot, i) => {
-                dot.classList.toggle('active', i === saldoModeIndex);
+            document.querySelectorAll('#saldoDots .saldo-dot, #saldoDotsTrx .saldo-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', (i % 3) === saldoModeIndex);
             });
         }
 
@@ -2101,8 +2126,8 @@
         }
 
         // Swipe left/right on the Total Saldo card to move one slide at a time
-        function initSaldoSwipe() {
-            let area = document.getElementById('saldoSwipeArea');
+        // Wires swipe-left/right-to-change-slide on one swipe-area element
+        function wireSaldoSwipeArea(area) {
             if (!area) return;
             let startX = 0, startY = 0;
 
@@ -2119,6 +2144,11 @@
                 if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return;
                 tampilkanSaldoIndex(saldoModeIndex + (deltaX < 0 ? 1 : -1));
             }, { passive: true });
+        }
+
+        function initSaldoSwipe() {
+            wireSaldoSwipeArea(document.getElementById('saldoSwipeArea'));
+            wireSaldoSwipeArea(document.getElementById('saldoSwipeAreaTrx'));
         }
 
         // Renders only the items matching the currently active tab (komponenTabAktif) — the
