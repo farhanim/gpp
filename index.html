@@ -1061,11 +1061,17 @@
 
         function getBulanTerbayar(idWarga) {
             let set = new Set();
-            riwayatPemasukan.filter(p => p.idWarga === idWarga).forEach(p => {
-                let mStart = p.bulanMulai !== undefined ? p.bulanMulai : new Date(p.tanggal).getMonth();
-                let yStart = p.tahunMulai !== undefined ? p.tahunMulai : new Date(p.tanggal).getFullYear();
-                let mEnd = p.bulanAkhir !== undefined ? p.bulanAkhir : mStart;
-                let yEnd = p.tahunAkhir !== undefined ? p.tahunAkhir : yStart;
+            // Match idWarga trimmed + case-insensitively — a warga.id of "Kav 1" and a payment's
+            // id_warga of "kav 1" or "Kav 1 " (stray whitespace) used to silently match nothing.
+            let target = (idWarga || '').toString().trim().toLowerCase();
+            riwayatPemasukan.filter(p => (p.idWarga || '').toString().trim().toLowerCase() === target).forEach(p => {
+                // != null catches both undefined AND null (a payment row where the column exists
+                // but was left empty) — the old !== undefined check missed the null case and could
+                // silently fall through to Number(null) = 0 further down, corrupting the date range.
+                let mStart = p.bulanMulai != null ? p.bulanMulai : new Date(p.tanggal).getMonth();
+                let yStart = p.tahunMulai != null ? p.tahunMulai : new Date(p.tanggal).getFullYear();
+                let mEnd = p.bulanAkhir != null ? p.bulanAkhir : mStart;
+                let yEnd = p.tahunAkhir != null ? p.tahunAkhir : yStart;
                 expandBulanRange(mStart, yStart, mEnd, yEnd).forEach(m => set.add(m.tahun + '-' + m.bulan));
             });
             return set;
@@ -1268,18 +1274,14 @@
             let tahun = parseInt(document.getElementById('filterTahun').value);
             let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            // "Total Kas Saat Ini" (header card) tracks only the Kas reserve: the "Kas" portion of
-            // dues accumulated across every warga's paid months (all time), minus pengeluaran that
-            // isn't Gaji/Sampah (those are pass-through, funded by their own matching dues portion).
-            let saldoKasSaatIni = saldoAwalSistem + hitungTotalKasDariIuran() - hitungPengeluaranNonGajiSampah();
-            document.getElementById('saldo-global').innerText = formatRp(saldoKasSaatIni);
+            // "Total Kas Saat Ini" (header card): cumulative Kas total, all time — see hitungKasKumulatif().
+            document.getElementById('saldo-global').innerText = formatRp(hitungKasKumulatif());
 
             let periodIn = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
-            // "Kas Bulan Ini" follows dues/lunas status for this specific month, not raw cash-flow
-            // dates — see hitungKasBulanIni().
+            // "Kas Bulan Ini" is scoped to the selected bulan/tahun — see hitungKasBulanIni().
             document.getElementById('period-kasbulanini').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
 
             // Optional in/out ratio bar — only present on some layouts, so guard instead of assuming it exists.
@@ -1897,16 +1899,27 @@
         // The per-month "Kas" (reserve) portion of the dues, from the "Kas" line in Komponen Tagihan —
         // as opposed to "Gaji Keamanan" and "Sampah", which are pass-through operational costs.
         function getKasPerBulan() {
-            let kasItem = komponenTagihan.find(k => (k.nama || '').toLowerCase().includes('kas'));
+            let kasItem = komponenTagihan.find(k => (k.nama || '').trim().toLowerCase().includes('kas'));
             return kasItem ? (parseInt(kasItem.nominal) || 0) : 0;
         }
 
         // A pengeluaran counts as "Gaji/Sampah" (routine pass-through, funded by its own matching
         // portion of the dues) if its item name mentions either keyword — matches both the default
-        // recurring items and any manually-renamed variant of them.
+        // recurring items and any manually-renamed variant of them. Used only for the "Total Saldo
+        // Pengeluaran (All Time)" card, which is specifically Gaji+Sampah (not Kas).
         function isPengeluaranGajiSampah(itemNama) {
             let nama = (itemNama || '').toLowerCase();
             return nama.includes('gaji') || nama.includes('sampah');
+        }
+
+        // A pengeluaran counts as "routine" (matches one of the DEFAULT_PENGELUARAN_BULANAN items —
+        // the same check the "Rutin" badge uses) if it's Gaji, Sampah, OR Uang Kas. This is broader
+        // than isPengeluaranGajiSampah() on purpose: "Uang Kas" is a bookkeeping entry recording that
+        // month's Kas contribution being set aside, not a real drawdown — it's the same money
+        // hitungTotalKasDariIuran() already counted as collected, so it must NOT also be subtracted
+        // as an expense, or the Kas reserve gets double-deducted.
+        function isPengeluaranRutin(itemNama) {
+            return DEFAULT_PENGELUARAN_BULANAN.some(d => d.item === itemNama);
         }
 
         // Total Kas accumulated from dues: for every warga, count every distinct month they've
@@ -1918,21 +1931,29 @@
             return totalBulanLunas * kasPerBulan;
         }
 
-        // "Kas Bulan Ini": same Kas-per-bulan rate, but scoped to one specific month/year —
-        // counts how many kavling are lunas for THAT dues month (not how much cash moved during
-        // that calendar month), times the Kas portion. E.g. Kas=Rp25.000 and all 24 kavling lunas
-        // for Agustus → 24 × Rp25.000 = Rp600.000, regardless of which dates payments were made on.
+        // Cumulative Kas total, all time — the "Kas" portion of dues for every kavling-month ever
+        // marked lunas, minus non-routine pengeluaran. Used by "Total Kas Saat Ini" (header) and
+        // the "Total Saldo Kas (All Time)" carousel view — NOT by "Kas Bulan Ini" (see below).
+        function hitungKasKumulatif() {
+            return hitungTotalKasDariIuran() - hitungPengeluaranNonRutin();
+        }
+
+        // "Kas Bulan Ini": scoped to ONE specific month/year — counts how many kavling are lunas
+        // for THAT dues month specifically (not the running all-time total), times the Kas portion.
+        // E.g. Kas=Rp25.000 and all 24 kavling lunas for Agustus → 24 × Rp25.000 = Rp600.000 for
+        // Agustus specifically. Intentionally independent of "Total Kas Saat Ini" on the header.
         function hitungKasBulanIni(bulan, tahun) {
             let kasPerBulan = getKasPerBulan();
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
             return jumlahLunas * kasPerBulan;
         }
 
-        // Pengeluaran that draws down the Kas reserve: everything EXCEPT Gaji/Sampah, since those
-        // are already funded by (and cancel out against) their own matching portion of the dues.
-        function hitungPengeluaranNonGajiSampah() {
+        // Pengeluaran that actually draws down the Kas reserve: everything that is NOT one of the
+        // three routine items (Gaji/Sampah/Uang Kas — all pass-through, already funded by their own
+        // matching dues portion). Only genuine ad-hoc/miscellaneous spending reduces the Kas balance.
+        function hitungPengeluaranNonRutin() {
             return dataPengeluaran
-                .filter(p => !isPengeluaranGajiSampah(p.item))
+                .filter(p => !isPengeluaranRutin(p.item))
                 .reduce((a, c) => a + parseInt(c.nominal), 0);
         }
 
@@ -1960,7 +1981,7 @@
 
             if (mode === 'kas') {
                 document.getElementById('periode-saldo-label').innerText = 'Total Saldo Kas (All Time)';
-                document.getElementById('period-saldoakhir').innerText = formatRp(saldoAwalSistem + hitungTotalKasDariIuran() - hitungPengeluaranNonGajiSampah());
+                document.getElementById('period-saldoakhir').innerText = formatRp(hitungKasKumulatif());
             } else if (mode === 'pengeluaran') {
                 document.getElementById('periode-saldo-label').innerText = 'Total Saldo Pengeluaran (All Time)';
                 document.getElementById('period-saldoakhir').innerText = formatRp(hitungPengeluaranGajiSampah());
