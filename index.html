@@ -1278,7 +1278,9 @@
             let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
-            document.getElementById('period-kasbulanini').innerText = formatRp(periodIn - periodOut);
+            // "Kas Bulan Ini" follows dues/lunas status for this specific month, not raw cash-flow
+            // dates — see hitungKasBulanIni().
+            document.getElementById('period-kasbulanini').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
 
             // Optional in/out ratio bar — only present on some layouts, so guard instead of assuming it exists.
             // (A previous bug here called getElementById on ids with no matching markup, which threw and
@@ -1914,6 +1916,16 @@
             let kasPerBulan = getKasPerBulan();
             let totalBulanLunas = dataWarga.reduce((sum, w) => sum + getBulanTerbayar(w.id).size, 0);
             return totalBulanLunas * kasPerBulan;
+        }
+
+        // "Kas Bulan Ini": same Kas-per-bulan rate, but scoped to one specific month/year —
+        // counts how many kavling are lunas for THAT dues month (not how much cash moved during
+        // that calendar month), times the Kas portion. E.g. Kas=Rp25.000 and all 24 kavling lunas
+        // for Agustus → 24 × Rp25.000 = Rp600.000, regardless of which dates payments were made on.
+        function hitungKasBulanIni(bulan, tahun) {
+            let kasPerBulan = getKasPerBulan();
+            let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
+            return jumlahLunas * kasPerBulan;
         }
 
         // Pengeluaran that draws down the Kas reserve: everything EXCEPT Gaji/Sampah, since those
