@@ -153,6 +153,7 @@
         }
         .komponen-tab-btn.active[data-tipe="pengeluaran"] { background: var(--coral); color: #fff; }
         .komponen-tab-btn.active[data-tipe="pemasukan"] { background: var(--success); color: #fff; }
+        .komponen-tab-btn.active[data-tipe="semua"] { background: var(--text-dark); color: #fff; }
         .split-bar { display: flex; width: 100%; height: 6px; border-radius: 10px; overflow: hidden; background: #EEF2F1; margin-bottom: 16px; }
         .split-bar .split-in { background: var(--success); height: 100%; }
         .split-bar .split-out { background: var(--danger); height: 100%; }
@@ -611,7 +612,8 @@
         </div>
 
         <div class="komponen-tabs mb-3">
-            <button type="button" id="trxTabBtnPengeluaran" class="komponen-tab-btn active" data-tipe="pengeluaran" onclick="gantiTabTransaksi('pengeluaran')">Pengeluaran</button>
+            <button type="button" id="trxTabBtnSemua" class="komponen-tab-btn active" data-tipe="semua" onclick="gantiTabTransaksi('semua')">Semua</button>
+            <button type="button" id="trxTabBtnPengeluaran" class="komponen-tab-btn" data-tipe="pengeluaran" onclick="gantiTabTransaksi('pengeluaran')">Pengeluaran</button>
             <button type="button" id="trxTabBtnPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="gantiTabTransaksi('pemasukan')">Pemasukan</button>
         </div>
 
@@ -977,7 +979,7 @@
         // from the dues period is expected.
         let pengeluaranActiveMonth = new Date().getMonth();
         let pengeluaranActiveYear = new Date().getFullYear();
-        let trxTabAktif = 'pengeluaran'; // which type tab is showing in the Transaksi list
+        let trxTabAktif = 'semua'; // which type tab is showing in the Transaksi list
         let trxFormTipe = 'pengeluaran'; // which type is selected in the Catat/Edit Transaksi modal
 
         // Bootstrap modal instances (assigned on DOMContentLoaded)
@@ -1567,10 +1569,13 @@
             // Reused all-time swipeable widget (same data/state as Beranda's copy)
             renderTampilanSaldo();
 
-            let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc : pengeluaranBulanIni;
+            let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc
+                : trxTabAktif === 'pengeluaran' ? pengeluaranBulanIni
+                : transaksiBulanIni; // 'semua' — both types combined
 
             if (daftar.length === 0) {
-                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${trxTabAktif === 'pemasukan' ? 'pemasukan' : 'pengeluaran'} tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
+                let labelKosong = trxTabAktif === 'pemasukan' ? 'pemasukan' : trxTabAktif === 'pengeluaran' ? 'pengeluaran' : 'transaksi';
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${labelKosong} tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
                 return;
             }
 
@@ -1594,6 +1599,7 @@
         // Switches which type of transaction the list below shows
         function gantiTabTransaksi(tipe) {
             trxTabAktif = tipe;
+            document.getElementById('trxTabBtnSemua').classList.toggle('active', tipe === 'semua');
             document.getElementById('trxTabBtnPengeluaran').classList.toggle('active', tipe === 'pengeluaran');
             document.getElementById('trxTabBtnPemasukan').classList.toggle('active', tipe === 'pemasukan');
             renderPengeluaran();
