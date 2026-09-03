@@ -347,6 +347,16 @@
         .modal-header { border: none; padding: 26px 26px 10px 26px; }
         .modal-body { padding: 18px 26px; }
         .modal-footer { border: none; padding: 10px 26px 26px 26px; }
+        .copy-notification {
+            position: fixed; top: 22px; left: 50%; z-index: 2000;
+            transform: translate(-50%, -12px); opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
+            box-shadow: 0 10px 24px rgba(38, 51, 59, 0.2); font-size: 0.82rem; font-weight: 700;
+            white-space: nowrap;
+        }
+        .copy-notification.show { transform: translate(-50%, 0); opacity: 1; }
+        .copy-notification i { color: var(--primary-light); margin-right: 6px; }
         .form-control, .form-select {
             border-radius: 16px; border: 2px solid #E5E7EB; padding: 12px; font-weight: 600; font-size: 0.9rem;
         }
@@ -393,6 +403,8 @@
     </style>
 </head>
 <body>
+
+    <div id="copyNotification" class="copy-notification" role="status" aria-live="polite"></div>
 
     <div class="top-navbar">
         <div class="app-header-row">
@@ -905,6 +917,22 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalKonfirmasiLogout" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body pt-4 text-center">
+                    <div class="icon-box mx-auto mb-3" style="width: 52px; height: 52px; border-radius: 18px; background: var(--warning-soft); color: #8A5A05; font-size: 1.2rem;"><i class="fas fa-arrow-right-from-bracket"></i></div>
+                    <h5 class="fw-bold mb-2">Keluar dari akun?</h5>
+                    <p class="text-muted mb-0" id="teksKonfirmasiLogout">Anda akan keluar dari akun ini.</p>
+                </div>
+                <div class="modal-footer d-flex gap-2">
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: #F1F3F5; color: var(--text-dark); padding: 14px;" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-action flex-grow-1 m-0" style="background: var(--text-dark); color: white; padding: 14px;" id="btnKonfirmasiLogout">Keluar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalKomponenTagihan" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1027,7 +1055,7 @@
 
         // Bootstrap modal instances (assigned on DOMContentLoaded)
         let modalBayar = null, modalDetail = null, modalEdit = null, modalRekening = null, modalKomponen = null, modalAgenda = null;
-        let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null, modalLogin = null;
+        let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null, modalLogin = null, modalLogout = null;
 
         // Warga detail modal state
         let idxWargaDetail = null, tahunDetailAktif = new Date().getFullYear();
@@ -1049,6 +1077,11 @@
             modalCatatan = new bootstrap.Modal(document.getElementById('modalTambahCatatan'));
             modalKonfirmasi = new bootstrap.Modal(document.getElementById('modalKonfirmasiHapus'));
             modalLogin = new bootstrap.Modal(document.getElementById('modalLogin'));
+            modalLogout = new bootstrap.Modal(document.getElementById('modalKonfirmasiLogout'));
+            document.getElementById('btnKonfirmasiLogout').addEventListener('click', () => {
+                modalLogout.hide();
+                logout();
+            });
 
             // Restore login state from previous session (if any) and reflect it in the UI
             restoreLoginState();
@@ -1129,10 +1162,11 @@
             }
         }
 
-        // Login button click: opens login modal if not signed in, else confirms logout.
+        // Login button click: opens login modal if not signed in, else opens logout confirmation.
         function klikTombolLogin() {
             if (currentUser) {
-                if (confirm(`Keluar dari akun "${currentUser.nama}"?`)) logout();
+                document.getElementById('teksKonfirmasiLogout').innerText = `Anda akan keluar dari akun "${currentUser.nama}".`;
+                modalLogout.show();
             } else {
                 document.getElementById('inputLoginUsername').value = '';
                 document.getElementById('inputLoginPin').value = '';
@@ -2035,10 +2069,20 @@
         function salinNoRekening() {
             let noRek = document.getElementById('rekening-norek').innerText;
             navigator.clipboard.writeText(noRek).then(() => {
-                alert('Nomor rekening berhasil disalin: ' + noRek);
+                tampilkanNotifikasi(`<i class="fas fa-check-circle"></i>Nomor rekening berhasil disalin: ${noRek}`);
             }).catch(err => {
                 console.error('Gagal menyalin teks: ', err);
+                tampilkanNotifikasi('<i class="fas fa-circle-exclamation"></i>Gagal menyalin nomor rekening.');
             });
+        }
+
+        let notifikasiTimeout;
+        function tampilkanNotifikasi(teks) {
+            let notifikasi = document.getElementById('copyNotification');
+            notifikasi.innerHTML = teks;
+            notifikasi.classList.add('show');
+            clearTimeout(notifikasiTimeout);
+            notifikasiTimeout = setTimeout(() => notifikasi.classList.remove('show'), 2800);
         }
 
         function updatePeriodeLabel() {
