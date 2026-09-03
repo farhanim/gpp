@@ -357,6 +357,16 @@
         }
         .copy-notification.show { transform: translate(-50%, 0); opacity: 1; }
         .copy-notification i { color: var(--primary-light); margin-right: 6px; }
+        .kas-ipl-info {
+            background: #fff; border: 1px solid rgba(229, 231, 235, 0.6);
+            border-radius: 24px; padding: 18px 20px; margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(10, 10, 10, 0.03);
+            align-items: flex-start;
+        }
+        .kas-ipl-info > .icon-box { background: var(--primary-soft); color: var(--primary-dark); }
+        .kas-ipl-info .kas-ipl-title { color: var(--primary-dark); font-size: 0.82rem; font-weight: 800; }
+        .kas-ipl-info .kas-ipl-amount { color: var(--ink); font-size: 1.15rem; font-weight: 800; }
+        .kas-ipl-info .kas-ipl-detail { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; }
         .form-control, .form-select {
             border-radius: 16px; border: 2px solid #E5E7EB; padding: 12px; font-weight: 600; font-size: 0.9rem;
         }
@@ -647,6 +657,8 @@
             <button type="button" id="trxTabBtnPengeluaran" class="komponen-tab-btn" data-tipe="pengeluaran" onclick="gantiTabTransaksi('pengeluaran')">Pengeluaran</button>
             <button type="button" id="trxTabBtnPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="gantiTabTransaksi('pemasukan')">Pemasukan</button>
         </div>
+
+        <div id="kasIplInfo" class="data-card kas-ipl-info d-none" aria-live="polite"></div>
 
         <div id="list-pengeluaran"></div>
     </div>
@@ -1598,23 +1610,21 @@
             let m1 = parseInt(document.getElementById('startMonth').value), y1 = parseInt(document.getElementById('startYear').value);
             let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
             let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
-            let ketStr = diffMonths === 1 ? `Iuran ${bulanNames[m1]} ${y1}` : `Iuran ${bulanNames[m1]} ${y1.toString().slice(-2)} - ${bulanNames[m2]} ${y2.toString().slice(-2)} (${diffMonths}bln)`;
-            // Same per-month summed calculation as kalkulasiBulk(), so what's saved always matches what was shown
-            let nominal = expandBulanRange(m1, y1, m2, y2).reduce((a, m) => a + getTagihanPerBulan(m.bulan, m.tahun), 0);
             let tanggal = document.getElementById('tglBayarActual').value;
+            if (diffMonths <= 0 || !tanggal) return alert('Periksa periode dan tanggal pembayaran.');
+
+            // Save one row per month so this works with the existing table schema, which does
+            // not have the optional bulanAkhir/tahunAkhir columns.
+            let paymentRows = expandBulanRange(m1, y1, m2, y2).map(m => ({
+                id_warga: w.id,
+                nominal: getTagihanPerBulan(m.bulan, m.tahun),
+                tanggal,
+                keterangan: `Iuran ${bulanNames[m.bulan]} ${m.tahun}`
+            }));
 
             let { error } = await supabaseClient
                 .from('riwayat_pemasukan')
-                .insert([{
-                    id_warga: w.id,
-                    nominal,
-                    tanggal,
-                    keterangan: ketStr,
-                    bulanMulai: m1,
-                    tahunMulai: y1,
-                    bulanAkhir: m2,
-                    tahunAkhir: y2
-                }]);
+                .insert(paymentRows);
 
             if (error) return alert('Gagal menyimpan pembayaran: ' + error.message);
 
@@ -1702,17 +1712,18 @@
             document.getElementById('pengeluaran-summary-in').innerText = formatRp(inDues + inAdHoc);
             document.getElementById('pengeluaran-summary-out').innerText = formatRp(outBulanIni);
             document.getElementById('pengeluaran-summary-kas').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
+            renderInfoKasIpl(bulan, tahun);
 
             // Reused all-time swipeable widget (same data/state as Beranda's copy)
             renderTampilanSaldo();
 
             let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc
                 : trxTabAktif === 'pengeluaran' ? pengeluaranBulanIni
-                : transaksiBulanIni; // 'semua' — both types combined
+                : transaksiBulanIni; // 'semua' — recorded transactions only
 
             if (daftar.length === 0) {
                 let labelKosong = trxTabAktif === 'pemasukan' ? 'pemasukan' : trxTabAktif === 'pengeluaran' ? 'pengeluaran' : 'transaksi';
-                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${labelKosong} tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${labelKosong} tambahan yang tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
                 return;
             }
 
@@ -1731,6 +1742,33 @@
                     <button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditPengeluaran(${p.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>
                 </div>`;
             });
+        }
+
+        function renderInfoKasIpl(bulan, tahun) {
+            let infoEl = document.getElementById('kasIplInfo');
+            if (!infoEl) return;
+            if (trxTabAktif !== 'pemasukan' && trxTabAktif !== 'semua') {
+                infoEl.classList.add('d-none');
+                return;
+            }
+
+            let komponenPemasukan = getKomponenTagihanAktif(bulan, tahun).filter(k => k.tipe === 'pemasukan');
+            let kasPerWarga = komponenPemasukan.reduce((total, k) => total + (parseInt(k.nominal) || 0), 0);
+            let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
+            let kasTerkumpul = hitungKasBulanIni(bulan, tahun);
+            let detail = komponenPemasukan.length
+                ? komponenPemasukan.map(k => `${k.nama}: ${formatRp(parseInt(k.nominal) || 0)}`).join(' &bull; ')
+                : 'Belum ada komponen Pemasukan pada periode ini.';
+
+            infoEl.innerHTML = `<div class="icon-box"><i class="fas fa-wallet"></i></div>
+                <div class="flex-grow-1">
+                    <div class="kas-ipl-title">Kas dari IPL - ${bulanNames[bulan]} ${tahun}</div>
+                    <div class="kas-ipl-amount">${formatRp(kasTerkumpul)}</div>
+                    <div class="kas-ipl-detail mt-1">${formatRp(kasPerWarga)} per warga x ${jumlahLunas} warga lunas</div>
+                    <div class="kas-ipl-detail mt-1">${detail}</div>
+                </div>
+            `;
+            infoEl.classList.remove('d-none');
         }
 
         // Switches which type of transaction the list below shows
