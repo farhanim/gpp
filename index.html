@@ -80,6 +80,28 @@
             transition: var(--transition-smooth);
         }
         .btn-login:active { transform: scale(0.96); }
+        .btn-login.is-logged-in { background: var(--success); }
+
+        /* View-only mode: applied to <body> whenever no user is logged in. Hides every button
+           that would write to the database — creating, editing, deleting, or paying — while
+           leaving all viewing/browsing/sharing/downloading fully accessible. Targets both
+           dedicated action-button classes AND any button whose onclick starts with a known
+           write-function prefix, so newly-added write actions are covered automatically. */
+        body.is-viewing-only .btn-add-floating,
+        body.is-viewing-only .btn-edit-full,
+        body.is-viewing-only .btn-toggle-status,
+        body.is-viewing-only .btn-rutin-check,
+        body.is-viewing-only .rutin-checklist-card,
+        body.is-viewing-only [onclick^="bukaTambah"],
+        body.is-viewing-only [onclick^="bukaEdit"],
+        body.is-viewing-only [onclick^="bukaModalBayar"],
+        body.is-viewing-only [onclick^="bukaKomponenTagihan"],
+        body.is-viewing-only [onclick^="hapus"],
+        body.is-viewing-only [onclick^="simpan"],
+        body.is-viewing-only [onclick^="prosesBayar"],
+        body.is-viewing-only [onclick^="toggleRutin"],
+        body.is-viewing-only [onclick^="bayarDariDetail"],
+        body.is-viewing-only [onclick^="tambahBarisKomponen"] { display: none !important; }
 
         .dashboard-container { position: relative; z-index: 20; padding: 0 20px; }
 
@@ -381,7 +403,7 @@
                     <span class="app-subtitle">Graha Pesona Pakansari</span>
                 </div>
             </div>
-            <button type="button" class="btn-login" onclick="alert('Fitur login akan segera hadir.')"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:4px;"></i> Login</button>
+            <button type="button" id="btnLogin" class="btn-login" onclick="klikTombolLogin()"><i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:4px;"></i> Login</button>
         </div>
     </div>
 
@@ -858,6 +880,31 @@
     </div>
 
     <!-- MODAL KOMPONEN -->
+    <!-- LOGIN MODAL -->
+    <div class="modal fade" id="modalLogin" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold">Login</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <p class="text-muted small mb-3">Masuk untuk bisa menambah, mengubah, atau menghapus data. Tanpa login Anda tetap bisa melihat semua data.</p>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Username</label>
+                        <input type="text" class="form-control" id="inputLoginUsername" autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">PIN</label>
+                        <input type="password" inputmode="numeric" pattern="[0-9]*" class="form-control" id="inputLoginPin" autocomplete="current-password" onkeydown="if(event.key==='Enter') prosesLogin()">
+                    </div>
+                    <div id="loginError" class="text-danger small text-center mb-2 d-none">Username atau PIN salah.</div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="prosesLogin()">Masuk</button></div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalKomponenTagihan" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -922,6 +969,16 @@
         const bulanNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
         const TAHUN_MIN = 2025, TAHUN_MAX = 2030;
 
+        // Dummy accounts — not stored in the database, hardcoded here for now. Update this list to
+        // add or change accounts. Anyone visiting the app without logging in can view everything;
+        // logging in unlocks add/edit/delete/pay actions.
+        const DUMMY_USERS = [
+            { username: 'admin', pin: '1234', nama: 'Admin' },
+            { username: 'bendahara', pin: '5678', nama: 'Bendahara' }
+        ];
+        const LOGIN_STORAGE_KEY = 'ipl_gpp_currentUser';
+        let currentUser = null;
+
         // Default recurring monthly expenses offered (not yet saved) on the Pengeluaran page
         const DEFAULT_PENGELUARAN_BULANAN = [
             { item: 'Gaji Keamanan (Mang Oni)', nominal: 1300000 },
@@ -970,7 +1027,7 @@
 
         // Bootstrap modal instances (assigned on DOMContentLoaded)
         let modalBayar = null, modalDetail = null, modalEdit = null, modalRekening = null, modalKomponen = null, modalAgenda = null;
-        let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null;
+        let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null, modalLogin = null;
 
         // Warga detail modal state
         let idxWargaDetail = null, tahunDetailAktif = new Date().getFullYear();
@@ -991,6 +1048,10 @@
             modalPengeluaran = new bootstrap.Modal(document.getElementById('modalTambahPengeluaran'));
             modalCatatan = new bootstrap.Modal(document.getElementById('modalTambahCatatan'));
             modalKonfirmasi = new bootstrap.Modal(document.getElementById('modalKonfirmasiHapus'));
+            modalLogin = new bootstrap.Modal(document.getElementById('modalLogin'));
+
+            // Restore login state from previous session (if any) and reflect it in the UI
+            restoreLoginState();
 
             // Shared delete-confirmation modal: runs whichever action was queued by bukaKonfirmasiHapus()
             document.getElementById('btnKonfirmasiHapus').addEventListener('click', async function() {
@@ -1041,6 +1102,62 @@
             document.getElementById('teksKonfirmasiHapus').innerText = teks;
             aksiKonfirmasiHapus = aksi;
             modalKonfirmasi.show();
+        }
+
+        /* ---------- Auth (dummy accounts, no DB) ---------- */
+
+        function restoreLoginState() {
+            try {
+                let raw = localStorage.getItem(LOGIN_STORAGE_KEY);
+                if (raw) currentUser = JSON.parse(raw);
+            } catch (e) {
+                currentUser = null;
+            }
+            updateLoginUI();
+        }
+
+        function updateLoginUI() {
+            let btn = document.getElementById('btnLogin');
+            if (currentUser) {
+                document.body.classList.remove('is-viewing-only');
+                btn.classList.add('is-logged-in');
+                btn.innerHTML = `<i class="fa-solid fa-user" style="margin-right:4px;"></i> ${currentUser.nama} <i class="fa-solid fa-arrow-right-from-bracket" style="margin-left:6px; opacity:0.7;"></i>`;
+            } else {
+                document.body.classList.add('is-viewing-only');
+                btn.classList.remove('is-logged-in');
+                btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:4px;"></i> Login';
+            }
+        }
+
+        // Login button click: opens login modal if not signed in, else confirms logout.
+        function klikTombolLogin() {
+            if (currentUser) {
+                if (confirm(`Keluar dari akun "${currentUser.nama}"?`)) logout();
+            } else {
+                document.getElementById('inputLoginUsername').value = '';
+                document.getElementById('inputLoginPin').value = '';
+                document.getElementById('loginError').classList.add('d-none');
+                modalLogin.show();
+            }
+        }
+
+        function prosesLogin() {
+            let username = (document.getElementById('inputLoginUsername').value || '').trim().toLowerCase();
+            let pin = (document.getElementById('inputLoginPin').value || '').trim();
+            let user = DUMMY_USERS.find(u => u.username.toLowerCase() === username && u.pin === pin);
+            let errEl = document.getElementById('loginError');
+            if (!user) { errEl.classList.remove('d-none'); return; }
+            errEl.classList.add('d-none');
+            currentUser = { username: user.username, nama: user.nama };
+            try { localStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify(currentUser)); } catch (e) {}
+            updateLoginUI();
+            modalLogin.hide();
+        }
+
+        function logout() {
+            currentUser = null;
+            try { localStorage.removeItem(LOGIN_STORAGE_KEY); } catch (e) {}
+            updateLoginUI();
         }
 
         async function loadDataFromDatabase() {
