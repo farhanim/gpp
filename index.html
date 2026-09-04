@@ -173,6 +173,7 @@
         }
         .komponen-tab-btn.active[data-tipe="pengeluaran"] { background: var(--coral); color: #fff; }
         .komponen-tab-btn.active[data-tipe="pemasukan"] { background: var(--success); color: #fff; }
+        .komponen-tab-btn.active[data-tipe="kasbon"] { background: var(--warning); color: #fff; }
         .komponen-tab-btn.active[data-tipe="semua"] { background: var(--text-dark); color: #fff; }
         /* Routine-expense checklist on the Transaksi > Pengeluaran tab: confirm a Komponen
            Tagihan pengeluaran item has been paid this month with one tap. */
@@ -775,6 +776,7 @@
                         <div class="komponen-tabs">
                             <button type="button" id="trxFormTabPengeluaran" class="komponen-tab-btn" data-tipe="pengeluaran" onclick="pilihTipeTransaksi('pengeluaran')">Pengeluaran</button>
                             <button type="button" id="trxFormTabPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="pilihTipeTransaksi('pemasukan')">Pemasukan</button>
+                            <button type="button" id="trxFormTabKasbon" class="komponen-tab-btn" data-tipe="kasbon" onclick="pilihTipeTransaksi('kasbon')">Kasbon</button>
                         </div>
                     </div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama / Keterangan</label><input type="text" class="form-control" id="inputNamaPengeluaran"  placeholder="contoh: Token listrik"></div>
@@ -1839,10 +1841,11 @@
             let rutinAktif = getPengeluaranRutinAktif(bulan, tahun);
             let idTransaksiRutin = new Set();
             if (rutinContainer) {
-                if (trxTabAktif !== 'pengeluaran' || rutinAktif.length === 0) {
+                let kasbonAktif = dataPengeluaran.filter(p => isKasbon(p) && new Date(p.tanggal).getMonth() === bulan && new Date(p.tanggal).getFullYear() === tahun);
+                if ((trxTabAktif !== 'pengeluaran' && trxTabAktif !== 'semua') || (rutinAktif.length === 0 && kasbonAktif.length === 0)) {
                     rutinContainer.innerHTML = '';
                 } else {
-                    rutinContainer.innerHTML = rutinAktif.map(k => {
+                    let rutinHtml = rutinAktif.map(k => {
                         let existing = cariTransaksiRutin(k.nama, bulan, tahun);
                         if (existing) idTransaksiRutin.add(existing.id);
                         let checked = !!existing;
@@ -1865,6 +1868,15 @@
                             </div>
                         </div>`;
                     }).join('');
+                    let kasbonHtml = kasbonAktif.map(p => {
+                        let lunas = getKasbonStatus(p) === 'lunas';
+                        return `<div class="rutin-checklist-card ${lunas ? 'is-paid' : ''}">
+                            <div class="d-flex align-items-start gap-3 flex-grow-1"><div class="icon-box icon-expense"><i class="fas fa-hand-holding-dollar"></i></div>
+                                <div class="data-info"><label class="fw-bold d-block">${getKasbonNama(p)}</label><p>${formatRp(p.nominal)} <span class="tag-rutin">Kasbon - ${lunas ? 'Lunas' : 'Belum Lunas'}</span></p></div></div>
+                            <button type="button" class="btn-rutin-check ${lunas ? 'is-paid' : ''}" onclick="ubahStatusKasbon(${JSON.stringify(p.id)}, ${!lunas})" aria-label="${lunas ? 'Tandai belum lunas' : 'Tandai lunas'}"><i class="fas fa-check"></i></button>
+                        </div>`;
+                    }).join('');
+                    rutinContainer.innerHTML = kasbonHtml + rutinHtml;
                 }
             }
 
@@ -1873,6 +1885,7 @@
             let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc
                 : trxTabAktif === 'pengeluaran' ? pengeluaranBulanIni.filter(p => !idTransaksiRutin.has(p.id))
                 : transaksiBulanIni.filter(p => !idTransaksiRutin.has(p.id)); // 'semua' — both types combined
+            daftar = daftar.filter(p => !isKasbon(p));
 
             if (daftar.length === 0) {
                 let labelKosong = trxTabAktif === 'pemasukan' ? 'pemasukan' : trxTabAktif === 'pengeluaran' ? 'pengeluaran' : 'transaksi';
@@ -1967,6 +1980,15 @@
             await loadDataFromDatabase();
         }
 
+        async function ubahStatusKasbon(id, menjadiLunas) {
+            let kasbon = dataPengeluaran.find(p => p.id == id);
+            if (!kasbon) return;
+            let { error } = await supabaseClient.from('pengeluaran').update({ item: formatKasbonItem(getKasbonNama(kasbon), menjadiLunas ? 'lunas' : 'belum_lunas') }).eq('id', id);
+            if (error) return alert('Gagal mengubah status kasbon: ' + error.message);
+            await loadDataFromDatabase();
+            tampilkanNotifikasi(`<i class="fas fa-check-circle"></i>Kasbon ${menjadiLunas ? 'ditandai lunas' : 'dikembalikan menjadi belum lunas'}.`);
+        }
+
         // Switches which type of transaction the list below shows
         function gantiTabTransaksi(tipe) {
             trxTabAktif = tipe;
@@ -1976,23 +1998,42 @@
             renderPengeluaran();
         }
 
+        function isKasbon(transaksi) {
+            return transaksi.tipe === 'kasbon' || (transaksi.item || '').startsWith('KASBON::');
+        }
+
+        function getKasbonStatus(transaksi) {
+            if (transaksi.tipe === 'kasbon') return transaksi.status || 'belum_lunas';
+            return (transaksi.item || '').split('::')[1] === 'LUNAS' ? 'lunas' : 'belum_lunas';
+        }
+
+        function getKasbonNama(transaksi) {
+            return transaksi.tipe === 'kasbon' ? transaksi.item : (transaksi.item || '').split('::').slice(2).join('::');
+        }
+
+        function formatKasbonItem(nama, status) {
+            return `KASBON::${status === 'lunas' ? 'LUNAS' : 'BELUM_LUNAS'}::${nama}`;
+        }
+
         // Switches the Pemasukan/Pengeluaran selector inside the Catat/Edit Transaksi modal
         function pilihTipeTransaksi(tipe) {
             trxFormTipe = tipe;
             document.getElementById('trxFormTabPengeluaran').classList.toggle('active', tipe === 'pengeluaran');
             document.getElementById('trxFormTabPemasukan').classList.toggle('active', tipe === 'pemasukan');
+            document.getElementById('trxFormTabKasbon').classList.toggle('active', tipe === 'kasbon');
         }
 
         // Reset the modal to "add" mode (blank fields, hidden delete button); defaults to whichever
         // tab is currently showing on the page
         function bukaTambahPengeluaran() {
             document.getElementById('idEditPengeluaran').value = '';
+            delete document.getElementById('idEditPengeluaran').dataset.status;
             document.getElementById('titlePengeluaran').innerText = 'Catat Transaksi';
             document.getElementById('inputNamaPengeluaran').value = '';
             document.getElementById('inputNominalPengeluaran').value = '';
             document.getElementById('inputTanggalPengeluaran').valueAsDate = new Date();
             document.getElementById('btnHapusPengeluaran').classList.add('d-none');
-            pilihTipeTransaksi(trxTabAktif);
+            pilihTipeTransaksi(trxTabAktif === 'pemasukan' || trxTabAktif === 'kasbon' ? trxTabAktif : 'pengeluaran');
             modalPengeluaran.show();
         }
 
@@ -2003,10 +2044,12 @@
             document.getElementById('idEditPengeluaran').value = id;
             document.getElementById('titlePengeluaran').innerText = 'Edit Transaksi';
             document.getElementById('inputNamaPengeluaran').value = p.item;
+            document.getElementById('inputNamaPengeluaran').value = isKasbon(p) ? getKasbonNama(p) : p.item;
             document.getElementById('inputNominalPengeluaran').value = p.nominal;
             document.getElementById('inputTanggalPengeluaran').value = p.tanggal;
             document.getElementById('btnHapusPengeluaran').classList.remove('d-none');
-            pilihTipeTransaksi(p.tipe === 'pemasukan' ? 'pemasukan' : 'pengeluaran');
+            pilihTipeTransaksi(p.tipe === 'pemasukan' ? 'pemasukan' : isKasbon(p) ? 'kasbon' : 'pengeluaran');
+            document.getElementById('idEditPengeluaran').dataset.status = getKasbonStatus(p);
             modalPengeluaran.show();
         }
 
@@ -2016,12 +2059,14 @@
             let nominal = parseInt(document.getElementById('inputNominalPengeluaran').value);
             let tanggal = document.getElementById('inputTanggalPengeluaran').value;
             let tipe = trxFormTipe;
+            let status = tipe === 'kasbon' ? (document.getElementById('idEditPengeluaran').dataset.status || 'belum_lunas') : null;
+            let itemTersimpan = tipe === 'kasbon' ? formatKasbonItem(item, status) : item;
 
             if (!item || !tanggal || isNaN(nominal)) return alert('Lengkapi semua data!');
 
             let { error } = idEdit
-                ? await supabaseClient.from('pengeluaran').update({ item, nominal, tanggal, tipe }).eq('id', idEdit)
-                : await supabaseClient.from('pengeluaran').insert([{ item, nominal, tanggal, tipe }]);
+                ? await supabaseClient.from('pengeluaran').update({ item: itemTersimpan, nominal, tanggal, tipe: 'pengeluaran' }).eq('id', idEdit)
+                : await supabaseClient.from('pengeluaran').insert([{ item: itemTersimpan, nominal, tanggal, tipe: 'pengeluaran' }]);
 
             if (error) return alert('Gagal: ' + error.message);
 
@@ -2494,7 +2539,7 @@
         // matching dues portion). Only genuine ad-hoc/miscellaneous spending reduces the Kas balance.
         function hitungPengeluaranNonRutin() {
             return dataPengeluaran
-                .filter(p => !isPengeluaranRutin(p.item))
+                .filter(p => isKasbon(p) ? getKasbonStatus(p) !== 'lunas' : !isPengeluaranRutin(p.item))
                 .reduce((a, c) => a + parseInt(c.nominal), 0);
         }
 
