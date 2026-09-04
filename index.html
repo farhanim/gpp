@@ -175,6 +175,33 @@
         .komponen-tab-btn.active[data-tipe="pemasukan"] { background: var(--success); color: #fff; }
         .komponen-tab-btn.active[data-tipe="kasbon"] { background: var(--warning); color: #fff; }
         .komponen-tab-btn.active[data-tipe="semua"] { background: var(--text-dark); color: #fff; }
+        .rutin-summary {
+            background: var(--card-bg); border: 1px solid rgba(38, 51, 59, 0.06);
+            border-radius: 18px; padding: 14px 16px; margin-bottom: 16px;
+            box-shadow: 0 6px 18px rgba(38, 51, 59, 0.04);
+        }
+        .rutin-summary-title { color: var(--ink); font-size: 0.8rem; font-weight: 800; margin-bottom: 8px; }
+        .rutin-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .rutin-summary-item span { display: block; color: var(--text-muted); font-size: 0.68rem; font-weight: 700; }
+        .rutin-summary-item strong { display: block; color: var(--ink); font-size: 0.82rem; font-weight: 800; margin-top: 2px; }
+        .rutin-summary-item.net strong { color: var(--primary-dark); }
+        .rutin-summary-note { color: var(--text-muted); font-size: 0.68rem; font-weight: 600; line-height: 1.45; margin: 12px 2px 0; }
+        @media (max-width: 575.98px) {
+            .rutin-summary { padding: 16px; border-radius: 20px; }
+            .rutin-summary-title { font-size: 0.9rem; margin-bottom: 10px; }
+            .rutin-summary-grid { display: block; }
+            .rutin-summary-item {
+                display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                padding: 9px 0; border-bottom: 1px solid rgba(38, 51, 59, 0.08);
+            }
+            .rutin-summary-item:last-child { border-bottom: none; padding-bottom: 0; }
+            .rutin-summary-item span { font-size: 0.76rem; }
+            .rutin-summary-item strong { flex-shrink: 0; font-size: 0.9rem; margin-top: 0; text-align: right; }
+            .rutin-summary-item.net { padding-top: 12px; }
+            .rutin-summary-item.net span { font-weight: 800; color: var(--ink); }
+            .rutin-summary-item.net strong { font-size: 1rem; }
+            .rutin-summary-note { font-size: 0.7rem; margin: 10px 4px 0; }
+        }
         /* Routine-expense checklist on the Transaksi > Pengeluaran tab: confirm a Komponen
            Tagihan pengeluaran item has been paid this month with one tap. */
         .rutin-checklist-card {
@@ -680,10 +707,13 @@
             <button type="button" id="trxTabBtnPemasukan" class="komponen-tab-btn" data-tipe="pemasukan" onclick="gantiTabTransaksi('pemasukan')">Pemasukan</button>
         </div>
 
+        <div id="rutinSummary" class="rutin-summary" aria-live="polite"></div>
+
         <div id="kasIplInfo" class="data-card kas-ipl-info d-none" aria-live="polite"></div>
 
         <div id="list-pengeluaran-rutin"></div>
         <div id="list-pengeluaran"></div>
+        <p id="rutinSummaryNote" class="rutin-summary-note"></p>
     </div>
 
     <!-- CATATAN -->
@@ -1551,7 +1581,7 @@
             let tahun = parseInt(document.getElementById('filterTahun').value);
             let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            // "Total Kas Saat Ini" (header card): cumulative Kas total, all time — see hitungKasKumulatif().
+            // "Total Kas Saat Ini" (header card): actual Kas after non-routine outflows and income.
             document.getElementById('saldo-global').innerText = formatRp(hitungKasKumulatif());
 
             let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
@@ -1818,6 +1848,29 @@
         // filtered to the page's own active month/year. The stat-split reuses Beranda's styling:
         // Pemasukan combines warga dues + ad-hoc pemasukan transactions; Pengeluaran is ad-hoc
         // pengeluaran transactions only; Kas Bulan Ini stays the dues-based Kas formula, unchanged.
+        function renderRutinSummary(bulan, tahun, rutinAktif, kasbonAktif) {
+            let totalRutin = rutinAktif.reduce((total, k) => {
+                return total + (parseInt(k.nominal) || 0) * dataWarga.length;
+            }, 0);
+            let totalKasbon = kasbonAktif
+                .filter(p => getKasbonStatus(p) !== 'lunas')
+                .reduce((total, p) => total + (parseInt(p.nominal) || 0), 0);
+            let totalBersih = totalRutin - totalKasbon;
+            let summaryEl = document.getElementById('rutinSummary');
+            let noteEl = document.getElementById('rutinSummaryNote');
+            if (summaryEl) {
+                summaryEl.innerHTML = `<div class="rutin-summary-title">Pembayaran Rutin - ${bulanNames[bulan]} ${tahun}</div>
+                    <div class="rutin-summary-grid">
+                        <div class="rutin-summary-item"><span>Total rutin</span><strong>${formatRp(totalRutin)}</strong></div>
+                        <div class="rutin-summary-item"><span>Kasbon belum lunas</span><strong>-${formatRp(totalKasbon).replace('Rp', '')}</strong></div>
+                        <div class="rutin-summary-item net"><span>Total bersih</span><strong>${formatRp(totalBersih)}</strong></div>
+                    </div>`;
+            }
+            if (noteEl) {
+                noteEl.innerText = `Catatan: pembayaran rutin ${formatRp(totalRutin)} dikurangi kasbon belum lunas ${formatRp(totalKasbon)}, jadi total bersih ${formatRp(totalBersih)}.`;
+            }
+        }
+
         function renderPengeluaran() {
             const container = document.getElementById('list-pengeluaran'); if (!container) return; container.innerHTML = '';
             const rutinContainer = document.getElementById('list-pengeluaran-rutin');
@@ -1854,8 +1907,9 @@
             // the all-time totals); unchecking removes that transaction again.
             let rutinAktif = getPengeluaranRutinAktif(bulan, tahun);
             let idTransaksiRutin = new Set();
+            let kasbonAktif = dataPengeluaran.filter(p => isKasbon(p) && new Date(p.tanggal).getMonth() === bulan && new Date(p.tanggal).getFullYear() === tahun);
+            renderRutinSummary(bulan, tahun, rutinAktif, kasbonAktif);
             if (rutinContainer) {
-                let kasbonAktif = dataPengeluaran.filter(p => isKasbon(p) && new Date(p.tanggal).getMonth() === bulan && new Date(p.tanggal).getFullYear() === tahun);
                 if ((trxTabAktif !== 'pengeluaran' && trxTabAktif !== 'semua') || (rutinAktif.length === 0 && kasbonAktif.length === 0)) {
                     rutinContainer.innerHTML = '';
                 } else {
@@ -2079,8 +2133,8 @@
             if (!item || !tanggal || isNaN(nominal)) return alert('Lengkapi semua data!');
 
             let { error } = idEdit
-                ? await supabaseClient.from('pengeluaran').update({ item: itemTersimpan, nominal, tanggal, tipe: 'pengeluaran' }).eq('id', idEdit)
-                : await supabaseClient.from('pengeluaran').insert([{ item: itemTersimpan, nominal, tanggal, tipe: 'pengeluaran' }]);
+                ? await supabaseClient.from('pengeluaran').update({ item: itemTersimpan, nominal, tanggal, tipe }).eq('id', idEdit)
+                : await supabaseClient.from('pengeluaran').insert([{ item: itemTersimpan, nominal, tanggal, tipe }]);
 
             if (error) return alert('Gagal: ' + error.message);
 
@@ -2531,21 +2585,52 @@
             return total;
         }
 
-        // Cumulative Kas total, all time — the "Kas" portion of dues for every kavling-month ever
-        // marked lunas, minus non-routine pengeluaran. Used by "Total Kas Saat Ini" (header) and
-        // the "Total Saldo Kas (All Time)" carousel view — NOT by "Kas Bulan Ini" (see below).
+        // Total Kas Saat Ini: accumulate the Kas portion from every paid IPL month, subtract
+        // non-routine pengeluaran and unpaid kasbon, then add ad-hoc pemasukan. Routine expenses
+        // are excluded because their own IPL components fund them separately.
         function hitungKasKumulatif() {
-            return hitungTotalKasDariIuran() - hitungPengeluaranNonRutin();
+            let totalPemasukanAdHoc = dataPengeluaran
+                .filter(p => p.tipe === 'pemasukan')
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin();
         }
 
-        // "Kas Bulan Ini": scoped to ONE specific month/year — counts how many kavling are lunas
-        // for THAT dues month specifically (not the running all-time total), times THAT MONTH's Kas
-        // portion. E.g. Kas=Rp25.000 and all 24 kavling lunas for Agustus → 24 × Rp25.000 = Rp600.000
-        // for Agustus specifically. Intentionally independent of "Total Kas Saat Ini" on the header.
+        // Gross accumulated Kas from every paid IPL month plus every ad-hoc pemasukan. This
+        // intentionally excludes all pengeluaran so the all-time card shows collected funds.
+        function hitungKasAllTime() {
+            let totalPemasukanAdHoc = dataPengeluaran
+                .filter(p => p.tipe === 'pemasukan')
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            return hitungTotalKasDariIuran() + totalPemasukanAdHoc;
+        }
+
+        // All-time Pemasukan sums only recorded income across every month; the opening Kas is
+        // intentionally excluded because it is not a pemasukan transaction.
+        function hitungPemasukanAllTime() {
+            let totalIuran = riwayatPemasukan
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            let totalPemasukanAdHoc = dataPengeluaran
+                .filter(p => p.tipe === 'pemasukan')
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            return totalIuran + totalPemasukanAdHoc;
+        }
+
+        // "Kas Bulan Ini": scoped to ONE specific month/year — Kas from paid dues plus pemasukan
+        // transactions recorded in that period. It is intentionally independent of the all-time
+        // "Total Kas Saat Ini" value shown in the header.
         function hitungKasBulanIni(bulan, tahun) {
             let kasPerBulan = getKasPerBulan(bulan, tahun);
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
-            return jumlahLunas * kasPerBulan;
+            let tanggalAwal = new Date(tahun, bulan, 1);
+            let tanggalAkhir = new Date(tahun, bulan + 1, 0);
+            tanggalAkhir.setHours(23, 59, 59, 999);
+            let pemasukanAdHoc = dataPengeluaran
+                .filter(p => {
+                    let tanggal = new Date(p.tanggal);
+                    return p.tipe === 'pemasukan' && tanggal >= tanggalAwal && tanggal <= tanggalAkhir;
+                })
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            return jumlahLunas * kasPerBulan + pemasukanAdHoc;
         }
 
         // Pengeluaran that actually draws down the Kas reserve: everything that is NOT one of the
@@ -2553,16 +2638,35 @@
         // matching dues portion). Only genuine ad-hoc/miscellaneous spending reduces the Kas balance.
         function hitungPengeluaranNonRutin() {
             return dataPengeluaran
-                .filter(p => isKasbon(p) ? getKasbonStatus(p) !== 'lunas' : !isPengeluaranRutin(p.item))
-                .reduce((a, c) => a + parseInt(c.nominal), 0);
+                .filter(p => {
+                    if (isKasbon(p)) return getKasbonStatus(p) !== 'lunas';
+                    return p.tipe !== 'pemasukan' && !isPengeluaranRutin(p.item);
+                })
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
         }
 
-        // Total Pengeluaran Rutin: only Gaji Keamanan + Operasional Sampah, all time — a pure
-        // informational total (not netted against anything), matching their own dedicated dues portion.
+        // Total Pengeluaran Rutin: only routine expense components, all time — a pure
+        // informational total matching their dedicated dues portion.
         function hitungPengeluaranGajiSampah() {
             return dataPengeluaran
                 .filter(p => isPengeluaranGajiSampah(p.item))
-                .reduce((a, c) => a + parseInt(c.nominal), 0);
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+        }
+
+        // Total every recorded expense across all months; income transactions are excluded.
+        function hitungPengeluaranAllTime() {
+            return dataPengeluaran
+                .filter(p => p.tipe !== 'pemasukan')
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+        }
+
+        // All-time totals are the sums of the same monthly breakdown rows shown in reports.
+        function hitungTotalAllTimeDariBreakdown() {
+            return getRingkasanBulanan().reduce((total, periode) => ({
+                pemasukan: total.pemasukan + periode.masuk,
+                kas: total.kas + periode.kas,
+                pengeluaran: total.pengeluaran + periode.keluar
+            }), { pemasukan: 0, kas: 0, pengeluaran: 0 });
         }
 
         // The Beranda "Total Saldo" card is a swipeable carousel between three all-time views —
@@ -2570,7 +2674,7 @@
         // Tagihan IPL settings and lunas (paid) data per kavling across every month, and are
         // independent of the period filter.
         //   - Pemasukan: gross income collected, all time (no netting).
-        //   - Kas: the Kas reserve — same figure as the "Total Kas Saat Ini" header card.
+        //   - Kas: gross accumulated Kas across every paid month, without pengeluaran deductions.
         //   - Pengeluaran: routine Gaji Keamanan + Operasional Sampah spend, all time.
         const SALDO_MODES = ['pemasukan', 'kas', 'pengeluaran'];
         let saldoModeIndex = 0;
@@ -2585,20 +2689,20 @@
 
         function renderTampilanSaldo() {
             let mode = SALDO_MODES[saldoModeIndex];
-            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
+            let totalAllTime = hitungTotalAllTimeDariBreakdown();
 
             let labelIds = ['periode-saldo-label', 'periode-saldo-label-trx'];
             let amountIds = ['period-saldoakhir', 'period-saldoakhir-trx'];
 
             if (mode === 'kas') {
                 setTeksById(labelIds, 'Total Saldo Kas (All Time)');
-                setTeksById(amountIds, formatRp(hitungKasKumulatif()));
+                setTeksById(amountIds, formatRp(totalAllTime.kas));
             } else if (mode === 'pengeluaran') {
                 setTeksById(labelIds, 'Total Saldo Pengeluaran (All Time)');
-                setTeksById(amountIds, formatRp(hitungPengeluaranGajiSampah()));
+                setTeksById(amountIds, formatRp(totalAllTime.pengeluaran));
             } else {
                 setTeksById(labelIds, 'Total Saldo Pemasukan (All Time)');
-                setTeksById(amountIds, formatRp(saldoAwalSistem + totalInGlobal));
+                setTeksById(amountIds, formatRp(totalAllTime.pemasukan));
             }
 
             document.querySelectorAll('#saldoDots .saldo-dot, #saldoDotsTrx .saldo-dot').forEach((dot, i) => {
@@ -2793,10 +2897,10 @@
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
 
             // Same all-time figures as the swipeable "Total Saldo" widget's three views
-            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
-            let totalPemasukanAllTime = formatRp(saldoAwalSistem + totalInGlobal);
-            let totalKasAllTime = formatRp(hitungKasKumulatif());
-            let totalPengeluaranAllTime = formatRp(hitungPengeluaranGajiSampah());
+            let totalAllTime = hitungTotalAllTimeDariBreakdown();
+            let totalPemasukanAllTime = formatRp(totalAllTime.pemasukan);
+            let totalKasAllTime = formatRp(totalAllTime.kas);
+            let totalPengeluaranAllTime = formatRp(totalAllTime.pengeluaran);
 
             // Kavling lunas untuk bulan aktif — sama seperti Progres Iuran di Beranda
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, parseInt(bulan), parseInt(tahun))).length;
@@ -2859,10 +2963,10 @@
         function downloadImage() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
 
-            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
-            let totalMasuk = formatRp(saldoAwalSistem + totalInGlobal);
-            let totalKeluar = formatRp(hitungPengeluaranGajiSampah());
-            let totalKas = formatRp(hitungKasKumulatif());
+            let totalAllTime = hitungTotalAllTimeDariBreakdown();
+            let totalMasuk = formatRp(totalAllTime.pemasukan);
+            let totalKeluar = formatRp(totalAllTime.pengeluaran);
+            let totalKas = formatRp(totalAllTime.kas);
 
             let bulanMasuk = document.getElementById('period-pemasukan').innerText;
             let bulanKeluar = document.getElementById('period-pengeluaran').innerText;
@@ -2984,14 +3088,14 @@
 
         function downloadCSV() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
-            let totalInGlobal = riwayatPemasukan.reduce((a, c) => a + parseInt(c.nominal), 0);
             let ringkasan = getRingkasanBulanan();
 
             let rows = [];
             rows.push(['Data Keuangan Graha Pesona Pakansari (Semua Waktu)']);
             rows.push([]);
             rows.push(['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas']);
-            rows.push([formatRp(saldoAwalSistem + totalInGlobal), formatRp(hitungPengeluaranGajiSampah()), formatRp(hitungKasKumulatif())]);
+            let totalAllTime = hitungTotalAllTimeDariBreakdown();
+            rows.push([formatRp(totalAllTime.pemasukan), formatRp(totalAllTime.pengeluaran), formatRp(totalAllTime.kas)]);
             rows.push([]);
             rows.push([`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`]);
             rows.push(['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini']);
