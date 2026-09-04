@@ -780,7 +780,7 @@
                         </div>
                     </div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama / Keterangan</label><input type="text" class="form-control" id="inputNamaPengeluaran"  placeholder="contoh: Token listrik"></div>
-                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nominal (Rp)</label><input type="number" class="form-control" id="inputNominalPengeluaran"  placeholder="Rp 0"></div>
+                    <div class="mb-3"><label class="form-label text-muted small fw-bold">Nominal (Rp)</label><input type="text" inputmode="numeric" class="form-control" id="inputNominalPengeluaran" oninput="formatNominalInput(this)" placeholder="Rp 0"></div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Tanggal</label><input type="date" class="form-control" id="inputTanggalPengeluaran"></div>
                 </div>
                 <div class="modal-footer d-flex gap-2">
@@ -940,11 +940,11 @@
                     <p class="text-muted small mb-3">Masuk untuk bisa menambah, mengubah, atau menghapus data. Tanpa login Anda tetap bisa melihat semua data.</p>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">Username</label>
-                        <input type="text" class="form-control" id="inputLoginUsername" autocomplete="username">
+                        <input type="text" class="form-control" id="inputLoginUsername" autocomplete="username" autofocus onkeydown="if(event.key==='Enter') prosesLogin()" placeholder="Masukkan username">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">PIN</label>
-                        <input type="password" inputmode="numeric" pattern="[0-9]*" class="form-control" id="inputLoginPin" autocomplete="current-password" onkeydown="if(event.key==='Enter') prosesLogin()">
+                        <input type="password" inputmode="numeric" pattern="[0-9]*" class="form-control" id="inputLoginPin" autocomplete="current-password" onkeydown="if(event.key==='Enter') prosesLogin()" placeholder="Masukkan PIN">
                     </div>
                     <div id="loginError" class="text-danger small text-center mb-2 d-none">Username atau PIN salah.</div>
                 </div>
@@ -1299,6 +1299,12 @@
            4. UTILITIES
            ============================================================ */
         function formatRp(angka) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka); }
+        function formatNominal(angka) { return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(parseInt(angka) || 0); }
+        function getNominalValue(value) { return parseInt(String(value || '').replace(/\D/g, ''), 10) || 0; }
+        function formatNominalInput(input) {
+            let angka = getNominalValue(input.value);
+            input.value = angka ? formatNominal(angka) : '';
+        }
         function formatTgl(tglString) { return new Date(tglString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }); }
 
         function expandBulanRange(bulanMulai, tahunMulai, bulanAkhir, tahunAkhir) {
@@ -2045,7 +2051,7 @@
             document.getElementById('titlePengeluaran').innerText = 'Edit Transaksi';
             document.getElementById('inputNamaPengeluaran').value = p.item;
             document.getElementById('inputNamaPengeluaran').value = isKasbon(p) ? getKasbonNama(p) : p.item;
-            document.getElementById('inputNominalPengeluaran').value = p.nominal;
+            document.getElementById('inputNominalPengeluaran').value = formatNominal(p.nominal);
             document.getElementById('inputTanggalPengeluaran').value = p.tanggal;
             document.getElementById('btnHapusPengeluaran').classList.remove('d-none');
             pilihTipeTransaksi(p.tipe === 'pemasukan' ? 'pemasukan' : isKasbon(p) ? 'kasbon' : 'pengeluaran');
@@ -2056,7 +2062,7 @@
         async function simpanPengeluaran() {
             let idEdit = document.getElementById('idEditPengeluaran').value;
             let item = document.getElementById('inputNamaPengeluaran').value;
-            let nominal = parseInt(document.getElementById('inputNominalPengeluaran').value);
+            let nominal = getNominalValue(document.getElementById('inputNominalPengeluaran').value);
             let tanggal = document.getElementById('inputTanggalPengeluaran').value;
             let tipe = trxFormTipe;
             let status = tipe === 'kasbon' ? (document.getElementById('idEditPengeluaran').dataset.status || 'belum_lunas') : null;
@@ -2638,7 +2644,7 @@
                 el.innerHTML += `
                     <div class="d-flex gap-2 align-items-center mb-2">
                         <input type="text" class="form-control" style="flex: 1.4;" value="${k.nama}" oninput="updateKomponen(${i},'nama',this.value)">
-                        <input type="number" class="form-control" style="flex: 1;" value="${k.nominal}" oninput="updateKomponen(${i},'nominal',this.value)">
+                        <input type="text" inputmode="numeric" class="form-control" style="flex: 1;" value="${formatNominal(k.nominal)}" oninput="formatNominalInput(this); updateKomponen(${i},'nominal',this.value)">
                         <button type="button" class="btn-icon-sm" style="color: var(--coral);" onclick="hapusBarisKomponen(${i})"><i class="fas fa-trash"></i></button>
                     </div>`;
             });
@@ -2659,7 +2665,7 @@
         }
 
         function updateKomponen(i, field, val) {
-            komponenTagihan[i][field] = field === 'nominal' ? (parseInt(val) || 0) : val;
+            komponenTagihan[i][field] = field === 'nominal' ? getNominalValue(val) : val;
             updateTotalKomponenLabels();
         }
 
