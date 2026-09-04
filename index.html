@@ -1315,6 +1315,13 @@
             return arr;
         }
 
+        function isIuranPadaPeriode(payment, bulan, tahun) {
+            let targetKey = tahun * 12 + bulan;
+            let startKey = payment.tahunMulai * 12 + payment.bulanMulai;
+            let endKey = payment.tahunAkhir * 12 + payment.bulanAkhir;
+            return targetKey >= startKey && targetKey <= endKey;
+        }
+
         function getBulanTerbayar(idWarga) {
             let set = new Set();
             // Match idWarga trimmed + case-insensitively — a warga.id of "Kav 1" and a payment's
@@ -1547,7 +1554,7 @@
             // "Total Kas Saat Ini" (header card): cumulative Kas total, all time — see hitungKasKumulatif().
             document.getElementById('saldo-global').innerText = formatRp(hitungKasKumulatif());
 
-            let periodIn = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
@@ -1623,6 +1630,7 @@
             document.getElementById('idxWargaBayar').value = index;
             document.getElementById('namaWargaBayar').innerText = dataWarga[index].nama;
             document.getElementById('kavWargaBayar').innerText = dataWarga[index].id;
+            document.getElementById('tglBayarActual').valueAsDate = new Date();
             let activeMonth = parseInt(document.getElementById('filterBulan').value);
             let activeYear = parseInt(document.getElementById('filterTahun').value);
             let tunggakan = getTunggakanSampai(dataWarga[index].id, activeMonth, activeYear);
@@ -1829,7 +1837,7 @@
             let pengeluaranBulanIni = transaksiBulanIni.filter(p => p.tipe !== 'pemasukan'); // default/missing tipe = pengeluaran
 
             // Period stat-split: Pemasukan = warga dues + ad-hoc pemasukan; Pengeluaran = ad-hoc pengeluaran only
-            let inDues = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let inDues = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
             let inAdHoc = pemasukanAdHoc.reduce((a, c) => a + parseInt(c.nominal), 0);
             let outBulanIni = pengeluaranBulanIni.reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('pengeluaran-summary-in').innerText = formatRp(inDues + inAdHoc);
@@ -2840,7 +2848,7 @@
                 let tahun = Math.floor(v / 12), bulan = v % 12;
                 let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-                let masukDues = riwayatPemasukan.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+                let masukDues = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
                 let masukAdHoc = dataPengeluaran.filter(t => t.tipe === 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
                 let keluar = dataPengeluaran.filter(t => t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
 
