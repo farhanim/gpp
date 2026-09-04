@@ -91,7 +91,6 @@
         body.is-viewing-only .btn-edit-full,
         body.is-viewing-only .btn-toggle-status,
         body.is-viewing-only .btn-rutin-check,
-        body.is-viewing-only .rutin-checklist-card,
         body.is-viewing-only [onclick^="bukaTambah"],
         body.is-viewing-only [onclick^="bukaEdit"],
         body.is-viewing-only [onclick^="bukaModalBayar"],
@@ -174,6 +173,26 @@
         .komponen-tab-btn.active[data-tipe="pengeluaran"] { background: var(--coral); color: #fff; }
         .komponen-tab-btn.active[data-tipe="pemasukan"] { background: var(--success); color: #fff; }
         .komponen-tab-btn.active[data-tipe="semua"] { background: var(--text-dark); color: #fff; }
+        /* Routine-expense checklist on the Transaksi > Pengeluaran tab: confirm a Komponen
+           Tagihan pengeluaran item has been paid this month with one tap. */
+        .rutin-checklist-card {
+            background: var(--card-bg); border-radius: 24px; padding: 18px 20px; margin-bottom: 14px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            border: 1px solid rgba(229, 231, 235, 0.6);
+            box-shadow: 0 8px 24px rgba(10, 10, 10, 0.03);
+        }
+        .rutin-checklist-card.is-paid { background: var(--card-bg); border-color: rgba(229, 231, 235, 0.6); }
+        /* Small button-based toggle (not a bare native checkbox) — matches the app's existing
+           compact icon-button sizing convention (same 28px scale as .btn-icon-edit). */
+        .btn-rutin-check {
+            width: 28px; height: 28px; min-width: 28px; border-radius: 10px; flex-shrink: 0;
+            border: 1.5px solid #D1D5DB; background: #ffffff; color: transparent;
+            display: flex; align-items: center; justify-content: center; font-size: 0.72rem;
+            transition: var(--transition-smooth); cursor: pointer;
+        }
+        .btn-rutin-check:hover { border-color: var(--success); }
+        .btn-rutin-check.is-paid { background: var(--success); border-color: var(--success); color: #ffffff; }
+        .btn-rutin-check:active { transform: scale(0.92); }
         .split-bar { display: flex; width: 100%; height: 6px; border-radius: 10px; overflow: hidden; background: #EEF2F1; margin-bottom: 16px; }
         .split-bar .split-in { background: var(--success); height: 100%; }
         .split-bar .split-out { background: var(--danger); height: 100%; }
@@ -660,6 +679,7 @@
 
         <div id="kasIplInfo" class="data-card kas-ipl-info d-none" aria-live="polite"></div>
 
+        <div id="list-pengeluaran-rutin"></div>
         <div id="list-pengeluaran"></div>
     </div>
 
@@ -904,7 +924,7 @@
     </div>
 
     <!-- MODAL KOMPONEN -->
-    <!-- LOGIN MODAL -->
+     <!-- LOGIN MODAL -->
     <div class="modal fade" id="modalLogin" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1008,10 +1028,6 @@
 
         const bulanNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
         const TAHUN_MIN = 2025, TAHUN_MAX = 2030;
-
-        // Dummy accounts — not stored in the database, hardcoded here for now. Update this list to
-        // add or change accounts. Anyone visiting the app without logging in can view everything;
-        // logging in unlocks add/edit/delete/pay actions.
         const DUMMY_USERS = [
             { username: 'admin', pin: '1234', nama: 'Admin' },
             { username: 'bendahara', pin: '5678', nama: 'Bendahara' }
@@ -1148,6 +1164,7 @@
             aksiKonfirmasiHapus = aksi;
             modalKonfirmasi.show();
         }
+        
 
         /* ---------- Auth (dummy accounts, no DB) ---------- */
 
@@ -1610,7 +1627,11 @@
             let m1 = parseInt(document.getElementById('startMonth').value), y1 = parseInt(document.getElementById('startYear').value);
             let m2 = parseInt(document.getElementById('endMonth').value), y2 = parseInt(document.getElementById('endYear').value);
             let diffMonths = (y2 - y1) * 12 + (m2 - m1) + 1;
+            let ketStr = diffMonths === 1 ? `Iuran ${bulanNames[m1]} ${y1}` : `Iuran ${bulanNames[m1]} ${y1.toString().slice(-2)} - ${bulanNames[m2]} ${y2.toString().slice(-2)} (${diffMonths}bln)`;
+            // Same per-month summed calculation as kalkulasiBulk(), so what's saved always matches what was shown
+            let nominal = expandBulanRange(m1, y1, m2, y2).reduce((a, m) => a + getTagihanPerBulan(m.bulan, m.tahun), 0);
             let tanggal = document.getElementById('tglBayarActual').value;
+            
             if (diffMonths <= 0 || !tanggal) return alert('Periksa periode dan tanggal pembayaran.');
 
             // Save one row per month so this works with the existing table schema, which does
@@ -1621,6 +1642,8 @@
                 tanggal,
                 keterangan: `Iuran ${bulanNames[m.bulan]} ${m.tahun}`
             }));
+
+           
 
             let { error } = await supabaseClient
                 .from('riwayat_pemasukan')
@@ -1690,6 +1713,7 @@
         // pengeluaran transactions only; Kas Bulan Ini stays the dues-based Kas formula, unchanged.
         function renderPengeluaran() {
             const container = document.getElementById('list-pengeluaran'); if (!container) return; container.innerHTML = '';
+            const rutinContainer = document.getElementById('list-pengeluaran-rutin');
 
             document.getElementById('filterBulanPengeluaran').value = pengeluaranActiveMonth;
             document.getElementById('filterTahunPengeluaran').value = pengeluaranActiveYear;
@@ -1717,18 +1741,56 @@
             // Reused all-time swipeable widget (same data/state as Beranda's copy)
             renderTampilanSaldo();
 
+            // Routine-expense checklist: only shown on the Pengeluaran tab. Each item's name/nominal
+            // comes straight from Komponen Tagihan for this bulan/tahun — checking it off inserts a
+            // real pengeluaran transaction (which is what actually updates the widgets above and
+            // the all-time totals); unchecking removes that transaction again.
+            let rutinAktif = getPengeluaranRutinAktif(bulan, tahun);
+            let idTransaksiRutin = new Set();
+            if (rutinContainer) {
+                if (trxTabAktif !== 'pengeluaran' || rutinAktif.length === 0) {
+                    rutinContainer.innerHTML = '';
+                } else {
+                    rutinContainer.innerHTML = rutinAktif.map(k => {
+                        let existing = cariTransaksiRutin(k.nama, bulan, tahun);
+                        if (existing) idTransaksiRutin.add(existing.id);
+                        let checked = !!existing;
+                        let namaAman = k.nama.replace(/'/g, "\\'");
+                        // Komponen Tagihan stores the PER-KAVLING portion (e.g. Rp65.000 for Gaji
+                        // Keamanan) — the actual routine expense is that rate collected across every
+                        // kavling, so multiply by the number of warga to get the real amount owed.
+                        let totalNominal = (parseInt(k.nominal) || 0) * dataWarga.length;
+                        return `<div class="rutin-checklist-card ${checked ? 'is-paid' : ''}">
+                            <div class="d-flex align-items-start gap-3 flex-grow-1">
+                                <div class="icon-box icon-expense"><i class="fas fa-receipt"></i></div>
+                                <div class="data-info">
+                                    <label class="fw-bold d-block">${k.nama}</label>
+                                    <p>${formatRp(k.nominal)} per warga <span class="tag-rutin">Rutin</span></p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="fw-bold text-nowrap" style="color: var(--coral);">-${formatRp(totalNominal).replace('Rp', '')}</div>
+                                <button type="button" class="btn-rutin-check ${checked ? 'is-paid' : ''}" onclick="toggleRutinChecklist('${namaAman}', ${totalNominal}, ${!checked})" aria-label="${checked ? 'Batalkan' : 'Tandai'} ${k.nama}"><i class="fas fa-check"></i></button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // Exclude checklist-matched transactions from the plain list below — they're already
+            // represented by the checklist above, so showing them again would just be clutter.
             let daftar = trxTabAktif === 'pemasukan' ? pemasukanAdHoc
-                : trxTabAktif === 'pengeluaran' ? pengeluaranBulanIni
-                : transaksiBulanIni; // 'semua' — recorded transactions only
+                : trxTabAktif === 'pengeluaran' ? pengeluaranBulanIni.filter(p => !idTransaksiRutin.has(p.id))
+                : transaksiBulanIni.filter(p => !idTransaksiRutin.has(p.id)); // 'semua' — both types combined
 
             if (daftar.length === 0) {
                 let labelKosong = trxTabAktif === 'pemasukan' ? 'pemasukan' : trxTabAktif === 'pengeluaran' ? 'pengeluaran' : 'transaksi';
-                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${labelKosong} tambahan yang tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
+                container.innerHTML = `<p class="text-muted text-center py-4">Belum ada ${labelKosong} tercatat untuk ${bulanNames[bulan]} ${tahun}.</p>`;
                 return;
             }
 
             [...daftar].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)).forEach(p => {
-                let isRutin = DEFAULT_PENGELUARAN_BULANAN.some(d => d.item === p.item);
+                let isRutin = isPengeluaranGajiSampah(p.item);
                 let isPemasukan = p.tipe === 'pemasukan';
                 container.innerHTML += `<div class="data-card flex-column align-items-stretch">
                     <div class="d-flex align-items-start gap-3">
@@ -1743,8 +1805,7 @@
                 </div>`;
             });
         }
-
-        function renderInfoKasIpl(bulan, tahun) {
+ function renderInfoKasIpl(bulan, tahun) {
             let infoEl = document.getElementById('kasIplInfo');
             if (!infoEl) return;
             if (trxTabAktif !== 'pemasukan' && trxTabAktif !== 'semua') {
@@ -1769,6 +1830,50 @@
                 </div>
             `;
             infoEl.classList.remove('d-none');
+        }
+        // Checking a routine-expense checklist item records it as a real pengeluaran transaction
+        // (dated today if the active period is the current month, otherwise the 1st of that
+        // month); unchecking deletes that transaction again. Either way the widgets/totals
+        // refresh automatically since they're recomputed from dataPengeluaran on reload.
+        async function toggleRutinChecklist(nama, nominal, checked) {
+            let bulan = pengeluaranActiveMonth, tahun = pengeluaranActiveYear;
+            let existing = cariTransaksiRutin(nama, bulan, tahun);
+
+            try {
+                if (checked) {
+                    if (existing) { await loadDataFromDatabase(); return; } // already recorded, nothing to do
+
+                    // Built as a plain string — never round-tripped through new Date(...).toISOString(),
+                    // which converts to UTC and can silently roll the date into the previous month for
+                    // timezones ahead of UTC (e.g. Indonesia, UTC+7). That was the actual cause of
+                    // checks landing on the wrong month.
+                    let today = new Date();
+                    let isBulanIni = bulan === today.getMonth() && tahun === today.getFullYear();
+                    let tanggal = isBulanIni
+                        ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+                        : `${tahun}-${String(bulan + 1).padStart(2, '0')}-01`;
+
+                    let { error } = await supabaseClient.from('pengeluaran').insert([{ item: nama, nominal, tanggal, tipe: 'pengeluaran' }]);
+                    if (error) {
+                        console.error('Gagal menyimpan pengeluaran rutin:', error);
+                        alert('Gagal menyimpan: ' + error.message + '\n\nPastikan tabel "pengeluaran" sudah punya kolom "tipe".');
+                    }
+                } else {
+                    if (!existing) { await loadDataFromDatabase(); return; } // nothing to remove
+                    let { error } = await supabaseClient.from('pengeluaran').delete().eq('id', existing.id);
+                    if (error) {
+                        console.error('Gagal menghapus pengeluaran rutin:', error);
+                        alert('Gagal menghapus: ' + error.message);
+                    }
+                }
+            } catch (e) {
+                console.error('Kesalahan tak terduga saat toggle pengeluaran rutin:', e);
+                alert('Terjadi kesalahan: ' + e.message);
+            }
+
+            // Always reload — this makes the checklist reflect what's ACTUALLY saved, reverting
+            // visually if the operation above failed, instead of leaving a misleading checked state.
+            await loadDataFromDatabase();
         }
 
         // Switches which type of transaction the list below shows
@@ -1897,6 +2002,8 @@
 
             if (!judul || !isi) return alert('Lengkapi semua data!');
 
+            let today = new Date();
+            let tanggalHariIni = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             let { error } = idEdit
                 ? await supabaseClient.from('catatan').update({ judul, isi }).eq('id', idEdit)
                 : await supabaseClient.from('catatan').insert([{ judul, isi, tanggal: new Date().toISOString().split('T')[0] }]);
@@ -2195,6 +2302,28 @@
         // payment totals) and the Nominal IPL displays, replacing the old static per-warga rate.
         function getTagihanPerBulan(bulan, tahun) {
             return getKomponenTagihanAktif(bulan, tahun).reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
+        }
+
+        // Every Komponen Tagihan line tagged "Pengeluaran" for a given bulan/tahun — the routine
+        // expenses (Gaji Keamanan, Sampah, etc.) that the Transaksi > Pengeluaran checklist offers.
+        function getPengeluaranRutinAktif(bulan, tahun) {
+            return getKomponenTagihanAktif(bulan, tahun).filter(k => k.tipe === 'pengeluaran');
+        }
+
+        // Finds an existing pengeluaran transaction for this specific bulan/tahun whose name
+        // matches a given routine komponen's name (same substring-both-ways matching as
+        // isPengeluaranGajiSampah, so "Gaji Keamanan" matches a transaction named
+        // "Gaji Keamanan (Mang Oni)"). Used to know whether a checklist item is already checked.
+        function cariTransaksiRutin(namaKomponen, bulan, tahun) {
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
+            let target = (namaKomponen || '').trim().toLowerCase();
+            return dataPengeluaran.find(p => {
+                if (p.tipe === 'pemasukan') return false;
+                let d = new Date(p.tanggal);
+                if (d < sd || d > ed) return false;
+                let itemNama = (p.item || '').trim().toLowerCase();
+                return target && (itemNama.includes(target) || target.includes(itemNama));
+            });
         }
 
         // The per-month "Kas" (reserve) portion of the dues for a given bulan/tahun: sum of every
@@ -2552,7 +2681,7 @@
                 `Pengeluaran: ${document.getElementById('period-pengeluaran').innerText}\n` +
                 `Kavling Lunas: ${jumlahLunas}/${totalKavling}\n\n` +
                 `*Agenda Mendatang*\n${teksAgenda}\n\n` +
-                `_Terima kasih atas partisipasi warga._ `;
+                `_Terima kasih atas partisipasi warga._ 🙏`;
 
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
