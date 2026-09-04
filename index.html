@@ -100,6 +100,7 @@
         body.is-viewing-only [onclick^="prosesBayar"],
         body.is-viewing-only [onclick^="toggleRutin"],
         body.is-viewing-only [onclick^="bayarDariDetail"],
+        body.is-viewing-only .btn-revert-payment,
         body.is-viewing-only [onclick^="tambahBarisKomponen"] { display: none !important; }
 
         .dashboard-container { position: relative; z-index: 20; padding: 0 20px; }
@@ -372,7 +373,8 @@
             transition: opacity 0.25s ease, transform 0.25s ease;
             background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
             box-shadow: 0 10px 24px rgba(38, 51, 59, 0.2); font-size: 0.82rem; font-weight: 700;
-            white-space: nowrap;
+            width: min(520px, calc(100vw - 32px)); box-sizing: border-box;
+            white-space: normal; overflow-wrap: anywhere; text-align: center;
         }
         .copy-notification.show { transform: translate(-50%, 0); opacity: 1; }
         .copy-notification i { color: var(--primary-light); margin-right: 6px; }
@@ -738,12 +740,12 @@
                     </div>
                     <label class="form-label text-muted small fw-bold">Periode Bayar</label>
                     <div class="row g-2 mb-2">
-                        <div class="col-6"><select class="form-select" id="startMonth" onchange="kalkulasiBulk()"></select></div>
-                        <div class="col-6"><select class="form-select" id="startYear" onchange="kalkulasiBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="startMonth" onchange="ubahPeriodeBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="startYear" onchange="ubahPeriodeBulk()"></select></div>
                     </div>
                     <div class="row g-2 mb-4">
-                        <div class="col-6"><select class="form-select" id="endMonth" onchange="kalkulasiBulk()"></select></div>
-                        <div class="col-6"><select class="form-select" id="endYear" onchange="kalkulasiBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="endMonth" onchange="ubahPeriodeBulk()"></select></div>
+                        <div class="col-6"><select class="form-select" id="endYear" onchange="ubahPeriodeBulk()"></select></div>
                     </div>
                     <div class="p-4 rounded-4 text-center" style="background: rgba(20, 184, 166, 0.1); border: 2px dashed rgba(20, 184, 166, 0.35);">
                         <small class="text-dark fw-bold d-block mb-1" id="labelTotalBulan">Total: 1 Bulan</small>
@@ -1251,15 +1253,17 @@
                     return numA - numB;
                 });
 
-                riwayatPemasukan = (pemasukan || []).map(p => ({
-                    ...p,
-                    idWarga: p.id_warga,
-                    ket: p.keterangan || p.ket || 'Iuran Bulanan',
-                    bulanMulai: p.bulanMulai != null ? p.bulanMulai : new Date(p.tanggal).getMonth(),
-                    tahunMulai: p.tahunMulai != null ? p.tahunMulai : new Date(p.tanggal).getFullYear(),
-                    bulanAkhir: p.bulanAkhir != null ? p.bulanAkhir : new Date(p.tanggal).getMonth(),
-                    tahunAkhir: p.tahunAkhir != null ? p.tahunAkhir : new Date(p.tanggal).getFullYear()
-                }));
+                riwayatPemasukan = (pemasukan || []).map(p => {
+                    let tanggal = new Date(p.tanggal);
+                    let ket = p.keterangan || p.ket || 'Iuran Bulanan';
+                    let periodMatch = ket.match(/^Iuran\s+(.+?)\s+(\d{4})$/i);
+                    let monthFromKet = periodMatch ? bulanNames.findIndex(n => n.toLowerCase() === periodMatch[1].toLowerCase()) : -1;
+                    let bulanMulai = p.bulanMulai != null ? p.bulanMulai : (p.bulan_mulai != null ? p.bulan_mulai : monthFromKet >= 0 ? monthFromKet : tanggal.getMonth());
+                    let tahunMulai = p.tahunMulai != null ? p.tahunMulai : (p.tahun_mulai != null ? p.tahun_mulai : periodMatch ? parseInt(periodMatch[2]) : tanggal.getFullYear());
+                    let bulanAkhir = p.bulanAkhir != null ? p.bulanAkhir : (p.bulan_akhir != null ? p.bulan_akhir : bulanMulai);
+                    let tahunAkhir = p.tahunAkhir != null ? p.tahunAkhir : (p.tahun_akhir != null ? p.tahun_akhir : tahunMulai);
+                    return { ...p, idWarga: p.id_warga, ket, bulanMulai, tahunMulai, bulanAkhir, tahunAkhir };
+                });
 
                 dataPengeluaran = pengeluaran || [];
                 dataCatatan = catatan || [];
@@ -1322,6 +1326,20 @@
         }
 
         function isLunasBulan(idWarga, bulan, tahun) { return getBulanTerbayar(idWarga).has(tahun + '-' + bulan); }
+
+        // Returns the contiguous unpaid range ending at the selected period.
+        function getTunggakanSampai(idWarga, targetBulan, targetTahun) {
+            let setPaid = getBulanTerbayar(idWarga);
+            let targetVal = targetTahun * 12 + targetBulan;
+            let startVal = targetVal;
+            while (!setPaid.has(Math.floor(startVal / 12) + '-' + (startVal % 12)) && startVal > targetVal - 24) {
+                startVal -= 1;
+            }
+            // The loop stops on the first paid month before the arrears. The payment
+            // range must begin after that month, not on it.
+            if (setPaid.has(Math.floor(startVal / 12) + '-' + (startVal % 12))) startVal += 1;
+            return { bulan: startVal % 12, tahun: Math.floor(startVal / 12) };
+        }
 
         function getStatusWargaTeks(idWarga, targetBulan, targetTahun) {
             let setPaid = getBulanTerbayar(idWarga);
@@ -1597,7 +1615,68 @@
             document.getElementById('idxWargaBayar').value = index;
             document.getElementById('namaWargaBayar').innerText = dataWarga[index].nama;
             document.getElementById('kavWargaBayar').innerText = dataWarga[index].id;
+            let activeMonth = parseInt(document.getElementById('filterBulan').value);
+            let activeYear = parseInt(document.getElementById('filterTahun').value);
+            let tunggakan = getTunggakanSampai(dataWarga[index].id, activeMonth, activeYear);
+            document.getElementById('startMonth').value = tunggakan.bulan;
+            document.getElementById('startYear').value = tunggakan.tahun;
+            document.getElementById('endMonth').value = activeMonth;
+            document.getElementById('endYear').value = activeYear;
+            sinkronkanPeriodeBulk();
             kalkulasiBulk(); modalBayar.show();
+        }
+
+        function isiOpsiPeriode(selectMonthId, selectYearId, minKey, maxKey, selectedKey) {
+            let monthSelect = document.getElementById(selectMonthId);
+            let yearSelect = document.getElementById(selectYearId);
+            let selectedYear = Math.floor(selectedKey / 12);
+            let selectedMonth = selectedKey % 12;
+
+            yearSelect.innerHTML = Array.from({ length: TAHUN_MAX - TAHUN_MIN + 1 }, (_, i) => TAHUN_MIN + i)
+                .map(year => `<option value="${year}" ${year * 12 + 11 < minKey || year * 12 > maxKey ? 'disabled' : ''}>${year}</option>`).join('');
+            yearSelect.value = selectedYear;
+
+            monthSelect.innerHTML = bulanNames.map((name, month) => {
+                let key = selectedYear * 12 + month;
+                return `<option value="${month}" ${key < minKey || key > maxKey ? 'disabled' : ''}>${name}</option>`;
+            }).join('');
+            monthSelect.value = selectedMonth;
+        }
+
+        function sinkronkanPeriodeBulk() {
+            let index = parseInt(document.getElementById('idxWargaBayar').value);
+            if (!dataWarga[index]) return;
+
+            let activeMonth = parseInt(document.getElementById('filterBulan').value);
+            let activeYear = parseInt(document.getElementById('filterTahun').value);
+            let tunggakan = getTunggakanSampai(dataWarga[index].id, activeMonth, activeYear);
+            let minKey = tunggakan.tahun * 12 + tunggakan.bulan;
+            let maxKey = TAHUN_MAX * 12 + 11;
+            let startKey = parseInt(document.getElementById('startYear').value) * 12 + parseInt(document.getElementById('startMonth').value);
+            let endKey = parseInt(document.getElementById('endYear').value) * 12 + parseInt(document.getElementById('endMonth').value);
+
+            startKey = Math.max(minKey, Math.min(startKey, maxKey));
+            endKey = Math.max(startKey, Math.min(endKey, maxKey));
+
+            document.getElementById('startMonth').value = startKey % 12;
+            document.getElementById('startYear').value = Math.floor(startKey / 12);
+            document.getElementById('endMonth').value = endKey % 12;
+            document.getElementById('endYear').value = Math.floor(endKey / 12);
+            isiOpsiPeriode('startMonth', 'startYear', minKey, endKey, startKey);
+            isiOpsiPeriode('endMonth', 'endYear', startKey, maxKey, endKey);
+            // Lock only the arrears start so the user cannot skip unpaid months. The end period
+            // remains editable for bulk advance payments, but cannot precede the start period.
+            ['startMonth', 'startYear'].forEach(id => {
+                document.getElementById(id).disabled = true;
+            });
+            ['endMonth', 'endYear'].forEach(id => {
+                document.getElementById(id).disabled = false;
+            });
+        }
+
+        function ubahPeriodeBulk() {
+            sinkronkanPeriodeBulk();
+            kalkulasiBulk();
         }
 
         // Sums each selected month's OWN Komponen Tagihan rate (not a flat per-warga figure) —
@@ -1675,11 +1754,23 @@
                 grid.innerHTML += `<div class="bulan-chip ${cls}">${nm}</div>`;
             });
             let riwayatEl = document.getElementById('detailRiwayat');
-            let payments = riwayatPemasukan.filter(p => p.idWarga === w.id);
-            riwayatEl.innerHTML = payments.length ? payments.map(p => `<div class="d-flex justify-content-between py-2 border-bottom"><div><p class="m-0 fw-bold small">${p.ket}</p><small class="text-muted">${formatTgl(p.tanggal)}</small></div><span class="fw-bold text-success">${formatRp(p.nominal)}</span></div>`).join('') : '<p class="text-muted small">Belum ada riwayat.</p>';
+            let payments = riwayatPemasukan.filter(p => (p.idWarga || '').toString().trim().toLowerCase() === w.id.toString().trim().toLowerCase());
+            payments.sort((a, b) => (b.tahunMulai * 12 + b.bulanMulai) - (a.tahunMulai * 12 + a.bulanMulai));
+            riwayatEl.innerHTML = payments.length ? payments.map(p => `<div class="d-flex justify-content-between align-items-center py-2 border-bottom"><div><p class="m-0 fw-bold small">${p.ket}</p><small class="text-muted">${formatTgl(p.tanggal)}</small></div><div class="text-end"><span class="fw-bold text-success d-block">${formatRp(p.nominal)}</span>${p.id != null ? `<button type="button" class="btn btn-sm btn-link text-danger p-0 btn-revert-payment" onclick="batalPembayaran(${JSON.stringify(p.id)})">Batalkan</button>` : ''}</div></div>`).join('') : '<p class="text-muted small">Belum ada riwayat.</p>';
         }
 
         function bayarDariDetail() { modalDetail.hide(); bukaModalBayar(idxWargaDetail); }
+
+        async function batalPembayaran(paymentId) {
+            let { error } = await supabaseClient.from('riwayat_pemasukan').delete().eq('id', paymentId);
+            if (error) {
+                tampilkanNotifikasi(`<i class="fas fa-circle-exclamation"></i>Gagal membatalkan pembayaran: ${error.message}`);
+                return;
+            }
+            await loadDataFromDatabase();
+            renderDetailGrid();
+            tampilkanNotifikasi('<i class="fas fa-check-circle"></i>Pembayaran dibatalkan. Status kembali menjadi belum bayar.');
+        }
 
         function bukaEditWarga(index) {
             document.getElementById('idxWargaEdit').value = index;
