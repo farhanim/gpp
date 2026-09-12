@@ -2094,12 +2094,22 @@
         }
 
         function getKasbonStatus(transaksi) {
-            if (transaksi.tipe === 'kasbon') return transaksi.status || 'belum_lunas';
-            return (transaksi.item || '').split('::')[1] === 'LUNAS' ? 'lunas' : 'belum_lunas';
+            let item = (transaksi.item || '').trim();
+            if (item.startsWith('KASBON::')) {
+                let rawStatus = item.split('::')[1];
+                if (rawStatus) return rawStatus.toLowerCase() === 'lunas' ? 'lunas' : 'belum_lunas';
+            }
+            if (transaksi.tipe === 'kasbon') return (transaksi.status || 'belum_lunas').toLowerCase() === 'lunas' ? 'lunas' : 'belum_lunas';
+            return 'belum_lunas';
         }
 
         function getKasbonNama(transaksi) {
-            return transaksi.tipe === 'kasbon' ? transaksi.item : (transaksi.item || '').split('::').slice(2).join('::');
+            let item = (transaksi.item || '').trim();
+            if (item.startsWith('KASBON::')) {
+                let nama = item.split('::').slice(2).join('::').trim();
+                return nama || 'Kasbon';
+            }
+            return item || 'Kasbon';
         }
 
         function formatKasbonItem(nama, status) {
@@ -2735,20 +2745,22 @@
 
         function renderTampilanSaldo() {
             let mode = SALDO_MODES[saldoModeIndex];
-            let totalAllTime = hitungTotalAllTimeDariBreakdown();
+            let totalPemasukan = hitungPemasukanAllTime();
+            let totalKas = hitungKasAllTime();
+            let totalPengeluaran = hitungPengeluaranAllTime();
 
             let labelIds = ['periode-saldo-label', 'periode-saldo-label-trx'];
             let amountIds = ['period-saldoakhir', 'period-saldoakhir-trx'];
 
             if (mode === 'kas') {
                 setTeksById(labelIds, 'Total Saldo Kas (All Time)');
-                setTeksById(amountIds, formatRp(totalAllTime.kas));
+                setTeksById(amountIds, formatRp(totalKas));
             } else if (mode === 'pengeluaran') {
                 setTeksById(labelIds, 'Total Saldo Pengeluaran (All Time)');
-                setTeksById(amountIds, formatRp(totalAllTime.pengeluaran));
+                setTeksById(amountIds, formatRp(totalPengeluaran));
             } else {
                 setTeksById(labelIds, 'Total Saldo Pemasukan (All Time)');
-                setTeksById(amountIds, formatRp(totalAllTime.pemasukan));
+                setTeksById(amountIds, formatRp(totalPemasukan));
             }
 
             document.querySelectorAll('#saldoDots .saldo-dot, #saldoDotsTrx .saldo-dot').forEach((dot, i) => {
