@@ -1581,8 +1581,9 @@
             let tahun = parseInt(document.getElementById('filterTahun').value);
             let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            // "Total Kas Saat Ini" (header card): actual Kas after non-routine outflows and income.
-            document.getElementById('saldo-global').innerText = formatRp(hitungKasKumulatif());
+            // "Total Kas Saat Ini" uses the same monthly Kas breakdown as the all-time card,
+            // including the current unpaid/lunas status of every Kasbon.
+            document.getElementById('saldo-global').innerText = formatRp(hitungTotalAllTimeDariBreakdown().kas);
 
             let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
@@ -1695,12 +1696,31 @@
 
             let activeMonth = parseInt(document.getElementById('filterBulan').value);
             let activeYear = parseInt(document.getElementById('filterTahun').value);
+            let paidMonths = getBulanTerbayar(dataWarga[index].id);
+            let hasHistory = paidMonths && paidMonths.size > 0;
             let tunggakan = getTunggakanSampai(dataWarga[index].id, activeMonth, activeYear);
-            let minKey = tunggakan.tahun * 12 + tunggakan.bulan;
             let maxKey = TAHUN_MAX * 12 + 11;
             let startKey = parseInt(document.getElementById('startYear').value) * 12 + parseInt(document.getElementById('startMonth').value);
             let endKey = parseInt(document.getElementById('endYear').value) * 12 + parseInt(document.getElementById('endMonth').value);
 
+            if (!hasHistory) {
+                let minKey = TAHUN_MIN * 12;
+                startKey = Math.max(minKey, Math.min(startKey, maxKey));
+                endKey = Math.max(startKey, Math.min(endKey, maxKey));
+
+                document.getElementById('startMonth').value = startKey % 12;
+                document.getElementById('startYear').value = Math.floor(startKey / 12);
+                document.getElementById('endMonth').value = endKey % 12;
+                document.getElementById('endYear').value = Math.floor(endKey / 12);
+                isiOpsiPeriode('startMonth', 'startYear', minKey, maxKey, startKey);
+                isiOpsiPeriode('endMonth', 'endYear', startKey, maxKey, endKey);
+                ['startMonth', 'startYear', 'endMonth', 'endYear'].forEach(id => {
+                    document.getElementById(id).disabled = false;
+                });
+                return;
+            }
+
+            let minKey = tunggakan.tahun * 12 + tunggakan.bulan;
             startKey = Math.max(minKey, Math.min(startKey, maxKey));
             endKey = Math.max(startKey, Math.min(endKey, maxKey));
 
@@ -2615,9 +2635,22 @@
             return totalIuran + totalPemasukanAdHoc;
         }
 
+        // Kasbon that is still unpaid reduces the available Kas for its recorded month.
+        function hitungKasbonBelumLunasBulanIni(bulan, tahun) {
+            let tanggalAwal = new Date(tahun, bulan, 1);
+            let tanggalAkhir = new Date(tahun, bulan + 1, 0);
+            tanggalAkhir.setHours(23, 59, 59, 999);
+            return dataPengeluaran
+                .filter(p => {
+                    let tanggal = new Date(p.tanggal);
+                    return isKasbon(p) && getKasbonStatus(p) !== 'lunas' && tanggal >= tanggalAwal && tanggal <= tanggalAkhir;
+                })
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+        }
+
         // "Kas Bulan Ini": scoped to ONE specific month/year — Kas from paid dues plus pemasukan
-        // transactions recorded in that period. It is intentionally independent of the all-time
-        // "Total Kas Saat Ini" value shown in the header.
+        // transactions recorded in that period, less unpaid Kasbon in that period. It is
+        // intentionally independent of the all-time "Total Kas Saat Ini" value shown in the header.
         function hitungKasBulanIni(bulan, tahun) {
             let kasPerBulan = getKasPerBulan(bulan, tahun);
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
@@ -2630,7 +2663,7 @@
                     return p.tipe === 'pemasukan' && tanggal >= tanggalAwal && tanggal <= tanggalAkhir;
                 })
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
-            return jumlahLunas * kasPerBulan + pemasukanAdHoc;
+            return jumlahLunas * kasPerBulan + pemasukanAdHoc - hitungKasbonBelumLunasBulanIni(bulan, tahun);
         }
 
         // Pengeluaran that actually draws down the Kas reserve: everything that is NOT one of the
