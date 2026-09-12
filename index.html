@@ -1581,12 +1581,15 @@
             let tahun = parseInt(document.getElementById('filterTahun').value);
             let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59);
 
-            // "Total Kas Saat Ini" uses the same monthly Kas breakdown as the all-time card,
-            // including the current unpaid/lunas status of every Kasbon.
-            document.getElementById('saldo-global').innerText = formatRp(hitungTotalAllTimeDariBreakdown().kas);
+            // "Total Kas Saat Ini" must include every paid/lunas month already present in the
+            // dataset, including later months with existing masuk/lunas data, not just the
+            // currently selected filter period.
+            document.getElementById('saldo-global').innerText = formatRp(hitungKasAllTime());
 
             let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
-            let periodOut = dataPengeluaran.filter(t => new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+            let periodOut = dataPengeluaran
+                .filter(t => t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed)
+                .reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
             // "Kas Bulan Ini" is scoped to the selected bulan/tahun — see hitungKasBulanIni().
@@ -2146,7 +2149,12 @@
             let item = document.getElementById('inputNamaPengeluaran').value;
             let nominal = getNominalValue(document.getElementById('inputNominalPengeluaran').value);
             let tanggal = document.getElementById('inputTanggalPengeluaran').value;
-            let tipe = trxFormTipe;
+            let tipe = document.getElementById('trxFormTabPemasukan')?.classList.contains('active')
+                ? 'pemasukan'
+                : document.getElementById('trxFormTabKasbon')?.classList.contains('active')
+                    ? 'kasbon'
+                    : 'pengeluaran';
+            trxFormTipe = tipe;
             let status = tipe === 'kasbon' ? (document.getElementById('idEditPengeluaran').dataset.status || 'belum_lunas') : null;
             let itemTersimpan = tipe === 'kasbon' ? formatKasbonItem(item, status) : item;
 
@@ -2615,13 +2623,15 @@
             return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin();
         }
 
-        // Gross accumulated Kas from every paid IPL month plus every ad-hoc pemasukan. This
-        // intentionally excludes all pengeluaran so the all-time card shows collected funds.
+        // Gross accumulated Kas from every paid IPL month plus ad-hoc pemasukan, then subtract
+        // additional non-routine pengeluaran (excluding pengeluaran rutin, which are already
+        // covered by the matching dues portion). This keeps the all-time Kas card aligned with
+        // the real available cash balance.
         function hitungKasAllTime() {
             let totalPemasukanAdHoc = dataPengeluaran
                 .filter(p => p.tipe === 'pemasukan')
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
-            return hitungTotalKasDariIuran() + totalPemasukanAdHoc;
+            return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin();
         }
 
         // All-time Pemasukan sums only recorded income across every month; the opening Kas is
@@ -2693,11 +2703,14 @@
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
         }
 
-        // All-time totals are the sums of the same monthly breakdown rows shown in reports.
+        // All-time totals are derived from the same monthly breakdown rows shown in reports,
+        // except Kas which is computed from every paid month directly so future months already
+        // marked as masuk/lunas are included as soon as the history exists.
         function hitungTotalAllTimeDariBreakdown() {
-            return getRingkasanBulanan().reduce((total, periode) => ({
+            let breakdown = getRingkasanBulanan();
+            return breakdown.reduce((total, periode) => ({
                 pemasukan: total.pemasukan + periode.masuk,
-                kas: total.kas + periode.kas,
+                kas: hitungKasAllTime(),
                 pengeluaran: total.pengeluaran + periode.keluar
             }), { pemasukan: 0, kas: 0, pengeluaran: 0 });
         }
