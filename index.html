@@ -1588,7 +1588,7 @@
 
             let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran
-                .filter(t => t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed)
+                .filter(t => !isKasbon(t) && t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed)
                 .reduce((a, c) => a + parseInt(c.nominal), 0);
             document.getElementById('period-pemasukan').innerText = formatRp(periodIn);
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
@@ -2074,10 +2074,19 @@
         async function ubahStatusKasbon(id, menjadiLunas) {
             let kasbon = dataPengeluaran.find(p => p.id == id);
             if (!kasbon) return;
-            let { error } = await supabaseClient.from('pengeluaran').update({ item: formatKasbonItem(getKasbonNama(kasbon), menjadiLunas ? 'lunas' : 'belum_lunas') }).eq('id', id);
+
+            if (menjadiLunas) {
+                let { error } = await supabaseClient.from('pengeluaran').delete().eq('id', id);
+                if (error) return alert('Gagal menghapus kasbon dari data pengeluaran: ' + error.message);
+                await loadDataFromDatabase();
+                tampilkanNotifikasi('<i class="fas fa-check-circle"></i>Kasbon ditandai lunas dan dihapus dari data pengeluaran.');
+                return;
+            }
+
+            let { error } = await supabaseClient.from('pengeluaran').update({ item: formatKasbonItem(getKasbonNama(kasbon), 'belum_lunas') }).eq('id', id);
             if (error) return alert('Gagal mengubah status kasbon: ' + error.message);
             await loadDataFromDatabase();
-            tampilkanNotifikasi(`<i class="fas fa-check-circle"></i>Kasbon ${menjadiLunas ? 'ditandai lunas' : 'dikembalikan menjadi belum lunas'}.`);
+            tampilkanNotifikasi('<i class="fas fa-check-circle"></i>Kasbon dikembalikan menjadi belum lunas.');
         }
 
         // Switches which type of transaction the list below shows
@@ -2709,7 +2718,7 @@
         // Total every recorded expense across all months; income transactions are excluded.
         function hitungPengeluaranAllTime() {
             return dataPengeluaran
-                .filter(p => p.tipe !== 'pemasukan')
+                .filter(p => !isKasbon(p) && p.tipe !== 'pemasukan')
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
         }
 
@@ -3012,7 +3021,7 @@
 
                 let masukDues = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
                 let masukAdHoc = dataPengeluaran.filter(t => t.tipe === 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
-                let keluar = dataPengeluaran.filter(t => t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
+                let keluar = dataPengeluaran.filter(t => !isKasbon(t) && t.tipe !== 'pemasukan' && new Date(t.tanggal) >= sd && new Date(t.tanggal) <= ed).reduce((a, c) => a + parseInt(c.nominal), 0);
 
                 return { bulan, tahun, masuk: masukDues + masukAdHoc, keluar, kas: hitungKasBulanIni(bulan, tahun) };
             });
