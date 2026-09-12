@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IPL Graha Pesona Pakansari</title>
+    <link id="app-favicon" rel="icon" type="image/png" href="">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -491,10 +492,10 @@
             </div>
 
             <div class="pt-2 border-top border-dark border-opacity-10 mb-3">
-                <small class="fw-bold d-block text-truncate" id="rekening-info" style="font-size: 0.85rem;"><i class="fas fa-university me-1"></i>BRI - Achmad Junaedi | Kav 20</small>
+                <small class="fw-bold d-block text-truncate" id="rekening-info" style="font-size: 0.85rem;"><i class="fas fa-university me-1"></i>Rekening belum tersedia</small>
                 <div class="d-flex align-items-center justify-content-between mt-1">
                     <div>
-                        <span class="fw-extrabold text-dark" style="font-size: 1.15rem; letter-spacing: 0.5px;" id="rekening-norek">315201035014535</span>
+                        <span class="fw-extrabold text-dark" style="font-size: 1.15rem; letter-spacing: 0.5px;" id="rekening-norek">-</span>
                         <small class="text-dark opacity-75 d-block" style="font-size:6pt;" id="rekening-periode-teks">untuk periode 2026 September until 2027 September</small>
                     </div>
                     <button type="button" class="btn-icon-sm flex-shrink-0 shadow-sm" style="background: rgba(255,255,255,0.7); color: var(--text-dark); width: 32px; height: 32px; min-width: 32px; font-size: 0.8rem;" onclick="salinNoRekening()" title="Salin Nomor Rekening">
@@ -1148,6 +1149,12 @@
             // Restore login state from previous session (if any) and reflect it in the UI
             restoreLoginState();
 
+            const faviconEl = document.getElementById('app-favicon');
+            const logoImg = document.querySelector('.app-logo img');
+            if (faviconEl && logoImg && logoImg.src) {
+                faviconEl.href = logoImg.src;
+            }
+
             // Shared delete-confirmation modal: runs whichever action was queued by bukaKonfirmasiHapus()
             document.getElementById('btnKonfirmasiHapus').addEventListener('click', async function() {
                 if (aksiKonfirmasiHapus) await aksiKonfirmasiHapus();
@@ -1300,7 +1307,7 @@
                 dataPengeluaran = pengeluaran || [];
                 dataCatatan = catatan || [];
                 dataAgenda = agenda || [];
-                dataRekening = (rekening || []).length ? rekening : [{ tahun: 2026, bank: 'BRI', norek: '315201035014535', pemilik: 'Achmad Junaedi' }];
+                dataRekening = rekening || [];
                 dataKomponenTagihan = komponenRows || [];
 
                 // Defensive fix: if the `rekening` table has no unique constraint on `tahun`,
@@ -2417,13 +2424,23 @@
         function renderRekening() {
             let tahun = parseInt(document.getElementById('filterTahun')?.value) || new Date().getFullYear();
             let r = getRekeningAktif(tahun);
-            if (!r) return;
+            let rekeningInfo = document.getElementById('rekening-info');
+            let rekeningNorek = document.getElementById('rekening-norek');
+            let rekeningPeriodeTeks = document.getElementById('rekening-periode-teks');
 
-            let kavlingLabel = r.kavling ? r.kavling : (dataWarga[0] ? dataWarga[0].id : 'Kavling 1');
+            if (!r) {
+                rekeningInfo.innerHTML = '<i class="fas fa-university me-1"></i>Rekening belum tersedia';
+                rekeningNorek.innerText = '-';
+                rekeningPeriodeTeks.innerText = `untuk periode ${tahun} September - ${tahun + 1} September`;
+                updateNominalIplDisplays();
+                return;
+            }
 
-            document.getElementById('rekening-info').innerHTML = `<i class="fas fa-university me-1"></i>${r.bank} - ${r.pemilik}  |  ${kavlingLabel}`;
-            document.getElementById('rekening-norek').innerText = r.norek;
-            document.getElementById('rekening-periode-teks').innerText = `untuk periode ${tahun} September - ${tahun + 1} September`;
+            let kavlingLabel = r.kavling ? r.kavling : 'Kavling belum diisi';
+
+            rekeningInfo.innerHTML = `<i class="fas fa-university me-1"></i>${r.bank} - ${r.pemilik}  |  ${kavlingLabel}`;
+            rekeningNorek.innerText = r.norek;
+            rekeningPeriodeTeks.innerText = `untuk periode ${tahun} September - ${tahun + 1} September`;
 
             updateNominalIplDisplays();
         }
@@ -2488,14 +2505,24 @@
 
         function isiFormRekeningDariTahun() {
             let tahun = parseInt(document.getElementById('inputRekeningTahun').value);
-            let r = dataRekening.find(r => r.tahun === tahun) || getRekeningAktif(tahun) || { bank: 'BRI', norek: '315201035014535', pemilik: 'Achmad Junaedi', kavling: dataWarga[0]?.id || 'Kavling 1' };
+            let r = dataRekening.find(r => r.tahun === tahun) || getRekeningAktif(tahun);
+            let bankEl = document.getElementById('inputRekeningBank');
+            let norekEl = document.getElementById('inputRekeningNorek');
+            let pemilikEl = document.getElementById('inputRekeningPemilik');
+            let kavlingEl = document.getElementById('inputRekeningKavling');
 
-            document.getElementById('inputRekeningBank').value = r.bank;
-            document.getElementById('inputRekeningNorek').value = r.norek;
-            document.getElementById('inputRekeningPemilik').value = r.pemilik;
-            if (r.kavling && document.getElementById('inputRekeningKavling')) {
-                document.getElementById('inputRekeningKavling').value = r.kavling;
+            if (!r) {
+                bankEl.value = '';
+                norekEl.value = '';
+                pemilikEl.value = '';
+                if (kavlingEl) kavlingEl.value = '';
+                return;
             }
+
+            bankEl.value = r.bank || '';
+            norekEl.value = r.norek || '';
+            pemilikEl.value = r.pemilik || '';
+            if (kavlingEl) kavlingEl.value = r.kavling || '';
         }
 
         async function simpanEditRekening() {
