@@ -2043,7 +2043,13 @@
             let komponenPemasukan = getKomponenTagihanAktif(bulan, tahun).filter(k => k.tipe === 'pemasukan');
             let kasPerWarga = komponenPemasukan.reduce((total, k) => total + (parseInt(k.nominal) || 0), 0);
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
-            let kasTerkumpul = hitungKasBulanIni(bulan, tahun);
+            // Headline is the raw/gross Kas-from-IPL math shown right below it (rate x warga
+            // lunas) — NOT yet reduced by kasbon/pinjaman. "Kas Aktual" is the real available
+            // figure (same value as the "Kas Bulan Ini" card), which can come in lower when this
+            // period borrowed from Kas to cover routine/other pengeluaran — see the warning
+            // tooltip, same mechanism as the "Kas Bulan Ini" card.
+            let kasDariIplGross = jumlahLunas * kasPerWarga;
+            let kasAktual = hitungKasBulanIni(bulan, tahun);
             let detail = komponenPemasukan.length
                 ? komponenPemasukan.map(k => `${k.nama}: ${formatRp(parseInt(k.nominal) || 0)}`).join(' &bull; ')
                 : 'Belum ada komponen Pemasukan pada periode ini.';
@@ -2051,12 +2057,18 @@
             infoEl.innerHTML = `<div class="icon-box"><i class="fas fa-wallet"></i></div>
                 <div class="flex-grow-1">
                     <div class="kas-ipl-title">Kas dari IPL - ${bulanNames[bulan]} ${tahun}</div>
-                    <div class="kas-ipl-amount">${formatRp(kasTerkumpul)}</div>
+                    <div class="kas-ipl-amount">${formatRp(kasDariIplGross)}</div>
                     <div class="kas-ipl-detail mt-1">${formatRp(kasPerWarga)} per warga x ${jumlahLunas} warga lunas</div>
                     <div class="kas-ipl-detail mt-1">${detail}</div>
+                    <div class="kas-ipl-detail mt-2" style="position: relative;">
+                        Kas Aktual: <strong style="color: var(--ink);">${formatRp(kasAktual)}</strong>
+                        <i class="fas fa-triangle-exclamation kas-warning-icon d-none" id="kasWarningIconIpl" onclick="toggleKasWarningTooltip(event, 'kasWarningTooltipIpl')"></i>
+                        <div class="kas-warning-tooltip" id="kasWarningTooltipIpl"></div>
+                    </div>
                 </div>
             `;
             infoEl.classList.remove('d-none');
+            renderKasWarning(bulan, tahun, 'kasWarningIconIpl', 'kasWarningTooltipIpl');
         }
         // Checking a routine-expense checklist item records it as a real pengeluaran transaction
         // (dated today if the active period is the current month, otherwise the 1st of that
@@ -2899,7 +2911,7 @@
             }
             let jumlahBelumLunas = dataWarga.filter(w => !isLunasBulan(w.id, bulan, tahun)).length;
             icon.classList.remove('d-none');
-            tooltip.innerHTML = `<strong>Kas dipinjam ${formatRp(pinjaman)}</strong>Pengeluaran rutin &amp; lainnya bulan ini sudah tercatat/checked, tapi masih ada ${jumlahBelumLunas} warga yang belum lunas IPL — jadi kekurangannya dipinjam dulu dari saldo Kas.`;
+            tooltip.innerHTML = `<strong>Kas dipinjam ${formatRp(pinjaman)}</strong>Pengeluaran gaji dan sampah &amp; bulan ini sudah dibayar, tapi masih ada ${jumlahBelumLunas} warga yang belum lunas IPL — jadi kekurangannya dipinjam dulu dari saldo Kas.`;
         }
 
         // Click-to-toggle tooltip (not hover) so it also works on touch devices. Closing any open
