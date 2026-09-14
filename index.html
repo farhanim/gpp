@@ -237,6 +237,27 @@
         .stat-split .stat-icon.out { background: var(--danger-soft); color: #C42B37; }
         .stat-split .stat-text p { margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
         .stat-split .stat-text strong { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+        /* Warning icon shown on "Kas Bulan Ini" only when routine/other pengeluaran already
+           checked/recorded had to borrow from the Kas reserve (see hitungPinjamanKasRutinBulan) —
+           tap it to reveal the explanation in a small click-toggled tooltip (not hover, so it
+           works on touch too). Hidden entirely once Kas is fully covered / not borrowed. */
+        .stat-split .stat-item { position: relative; }
+        .kas-warning-icon {
+            color: var(--warning); font-size: 0.7rem; margin-left: 4px; cursor: pointer;
+            vertical-align: 1px;
+        }
+        .kas-warning-tooltip {
+            display: none; position: absolute; z-index: 20; top: calc(100% + 8px); left: 0;
+            width: 220px; max-width: 70vw; background: var(--ink); color: #fff;
+            font-size: 0.68rem; font-weight: 600; line-height: 1.5; border-radius: 12px;
+            padding: 10px 12px; box-shadow: 0 10px 24px rgba(10, 10, 10, 0.18);
+        }
+        .kas-warning-tooltip.show { display: block; }
+        .kas-warning-tooltip strong { display: block; color: var(--warning); font-size: 0.72rem; margin-bottom: 3px; }
+        .kas-warning-tooltip::before {
+            content: ''; position: absolute; bottom: 100%; left: 14px;
+            border: 6px solid transparent; border-bottom-color: var(--ink);
+        }
 
         /* === Simplified download / share card === */
         .download-card {
@@ -564,9 +585,10 @@
                 <div class="stat-item">
                     <div class="stat-icon" style="background: var(--primary-soft); color: var(--primary-dark);"><i class="fas fa-wallet"></i></div>
                     <div class="stat-text">
-                        <p>Kas Bulan Ini</p>
+                        <p>Kas Bulan Ini <i class="fas fa-triangle-exclamation kas-warning-icon d-none" id="kasWarningIcon" onclick="toggleKasWarningTooltip(event, 'kasWarningTooltip')"></i></p>
                         <strong id="period-kasbulanini">Rp 0</strong>
                     </div>
+                    <div class="kas-warning-tooltip" id="kasWarningTooltip"></div>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-item">
@@ -687,9 +709,10 @@
                 <div class="stat-item">
                     <div class="stat-icon" style="background: var(--primary-soft); color: var(--primary-dark);"><i class="fas fa-wallet"></i></div>
                     <div class="stat-text">
-                        <p>Kas Bulan Ini</p>
+                        <p>Kas Bulan Ini <i class="fas fa-triangle-exclamation kas-warning-icon d-none" id="kasWarningIconTrx" onclick="toggleKasWarningTooltip(event, 'kasWarningTooltipTrx')"></i></p>
                         <strong id="pengeluaran-summary-kas">Rp 0</strong>
                     </div>
+                    <div class="kas-warning-tooltip" id="kasWarningTooltipTrx"></div>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-item">
@@ -1601,6 +1624,7 @@
             document.getElementById('period-pengeluaran').innerText = formatRp(periodOut);
             // "Kas Bulan Ini" is scoped to the selected bulan/tahun — see hitungKasBulanIni().
             document.getElementById('period-kasbulanini').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
+            renderKasWarning(bulan, tahun, 'kasWarningIcon', 'kasWarningTooltip');
 
             // Optional in/out ratio bar — only present on some layouts, so guard instead of assuming it exists.
             // (A previous bug here called getElementById on ids with no matching markup, which threw and
@@ -1926,6 +1950,7 @@
             document.getElementById('pengeluaran-summary-in').innerText = formatRp(inDues + inAdHoc);
             document.getElementById('pengeluaran-summary-out').innerText = formatRp(outBulanIni);
             document.getElementById('pengeluaran-summary-kas').innerText = formatRp(hitungKasBulanIni(bulan, tahun));
+            renderKasWarning(bulan, tahun, 'kasWarningIconTrx', 'kasWarningTooltipTrx');
             renderInfoKasIpl(bulan, tahun);
 
             // Reused all-time swipeable widget (same data/state as Beranda's copy)
@@ -2645,6 +2670,51 @@
             return semuaNamaKomponen.some(kNama => nama.includes(kNama) || kNama.includes(nama));
         }
 
+        // The per-warga routine (Gaji Keamanan + Sampah, etc.) portion of the IPL bill for a
+        // given bulan/tahun — what ONE kavling owes toward routine expenses that period.
+        function getPengeluaranRutinPerBulan(bulan, tahun) {
+            return getPengeluaranRutinAktif(bulan, tahun).reduce((a, k) => a + (parseInt(k.nominal) || 0), 0);
+        }
+
+        // Routine (Gaji/Sampah) pengeluaran actually recorded/checked for ONE specific bulan/tahun
+        // — the real cash paid out that period, regardless of how many warga had actually paid.
+        function hitungPengeluaranRutinBulan(bulan, tahun) {
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59, 999);
+            return dataPengeluaran
+                .filter(p => !isKasbon(p) && p.tipe !== 'pemasukan' && isPengeluaranGajiSampah(p.item) && new Date(p.tanggal) >= sd && new Date(p.tanggal) <= ed)
+                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+        }
+
+        // Routine pengeluaran (Gaji Keamanan, Sampah, ...) is normally assumed self-funded by that
+        // same month's routine dues. But the checklist that records it always books the FULL
+        // amount (rate × every kavling — see rutinHtml in renderTransaksi), not just the rate ×
+        // kavling that have actually paid. So when some warga are still belum lunas for that
+        // bulan/tahun, the dues actually collected can fall short of the routine pengeluaran
+        // already checked/recorded there — that shortfall has to be borrowed from the Kas reserve
+        // instead of being assumed pre-funded. Returns 0 when collected dues already cover it.
+        function hitungPinjamanKasRutinBulan(bulan, tahun) {
+            let terkumpul = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length * getPengeluaranRutinPerBulan(bulan, tahun);
+            let terpakai = hitungPengeluaranRutinBulan(bulan, tahun);
+            return Math.max(0, terpakai - terkumpul);
+        }
+
+        // Same shortfall as hitungPinjamanKasRutinBulan(), summed across every bulan/tahun that
+        // has ANY routine pengeluaran recorded — used by the all-time Kas totals so a past month's
+        // borrowing keeps reducing the Kas reserve even after the filter moves to a later period.
+        function hitungPinjamanKasRutin() {
+            let bulanTerpakai = new Set();
+            dataPengeluaran.forEach(p => {
+                if (isKasbon(p) || p.tipe === 'pemasukan' || !isPengeluaranGajiSampah(p.item)) return;
+                let d = new Date(p.tanggal);
+                bulanTerpakai.add(d.getFullYear() * 12 + d.getMonth());
+            });
+            let total = 0;
+            bulanTerpakai.forEach(key => {
+                total += hitungPinjamanKasRutinBulan(key % 12, Math.floor(key / 12));
+            });
+            return total;
+        }
+
         // Total Kas accumulated from dues: for every warga, for every distinct month they've ever
         // paid for (across all history, any month/year), add THAT MONTH'S OWN rate — not today's
         // rate — so a rate change only affects months from the month it was set forward.
@@ -2659,25 +2729,21 @@
             return total;
         }
 
-        // Total Kas Saat Ini: accumulate the Kas portion from every paid IPL month, subtract
-        // non-routine pengeluaran and unpaid kasbon, then add ad-hoc pemasukan. Routine expenses
-        // are excluded because their own IPL components fund them separately.
-        function hitungKasKumulatif() {
-            let totalPemasukanAdHoc = dataPengeluaran
-                .filter(p => p.tipe === 'pemasukan')
-                .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
-            return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin();
-        }
-
-        // Gross accumulated Kas from every paid IPL month plus ad-hoc pemasukan, then subtract
-        // additional non-routine pengeluaran (excluding pengeluaran rutin, which are already
-        // covered by the matching dues portion). This keeps the all-time Kas card aligned with
-        // the real available cash balance.
+        // Total Kas Saat Ini / Total Saldo Kas (All Time): accumulate the Kas portion from every
+        // paid IPL month, add ad-hoc pemasukan, then subtract non-routine pengeluaran, unpaid
+        // kasbon, AND any routine pengeluaran that had to be borrowed from Kas because not every
+        // warga had paid yet that month (hitungPinjamanKasRutin) — see that function for why
+        // routine expenses can't just be assumed fully self-funded.
         function hitungKasAllTime() {
             let totalPemasukanAdHoc = dataPengeluaran
                 .filter(p => p.tipe === 'pemasukan')
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
-            return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin();
+            return hitungTotalKasDariIuran() + totalPemasukanAdHoc - hitungPengeluaranNonRutin() - hitungPinjamanKasRutin();
+        }
+
+        // Kept as an alias — some callers/comments still refer to this name for the same figure.
+        function hitungKasKumulatif() {
+            return hitungKasAllTime();
         }
 
         // All-time Pemasukan sums only recorded income across every month; the opening Kas is
@@ -2705,8 +2771,10 @@
         }
 
         // "Kas Bulan Ini": scoped to ONE specific month/year — Kas from paid dues plus pemasukan
-        // transactions recorded in that period, less unpaid Kasbon in that period. It is
-        // intentionally independent of the all-time "Total Kas Saat Ini" value shown in the header.
+        // transactions recorded in that period, less unpaid Kasbon and any routine pengeluaran
+        // borrowed from Kas in that period (hitungPinjamanKasRutinBulan — belum lunas warga but
+        // the routine expense was already checked off). It is intentionally independent of the
+        // all-time "Total Kas Saat Ini" value shown in the header.
         function hitungKasBulanIni(bulan, tahun) {
             let kasPerBulan = getKasPerBulan(bulan, tahun);
             let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
@@ -2719,12 +2787,15 @@
                     return p.tipe === 'pemasukan' && tanggal >= tanggalAwal && tanggal <= tanggalAkhir;
                 })
                 .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
-            return jumlahLunas * kasPerBulan + pemasukanAdHoc - hitungKasbonBelumLunasBulanIni(bulan, tahun);
+            return jumlahLunas * kasPerBulan + pemasukanAdHoc - hitungKasbonBelumLunasBulanIni(bulan, tahun) - hitungPinjamanKasRutinBulan(bulan, tahun);
         }
 
-        // Pengeluaran that actually draws down the Kas reserve: everything that is NOT one of the
-        // three routine items (Gaji/Sampah/Uang Kas — all pass-through, already funded by their own
-        // matching dues portion). Only genuine ad-hoc/miscellaneous spending reduces the Kas balance.
+        // Pengeluaran that directly draws down the Kas reserve: everything that is NOT one of the
+        // routine items (Gaji/Sampah/Uang Kas — normally pass-through, funded by their own matching
+        // dues portion). Genuine ad-hoc/miscellaneous spending is subtracted here in full; any
+        // shortfall specifically from routine items is handled separately by
+        // hitungPinjamanKasRutin(), since routine items are only funded up to what's actually been
+        // collected (jumlah warga lunas), not assumed fully covered.
         function hitungPengeluaranNonRutin() {
             return dataPengeluaran
                 .filter(p => {
@@ -2810,6 +2881,40 @@
             saldoModeIndex = Math.max(0, Math.min(SALDO_MODES.length - 1, i));
             renderTampilanSaldo();
         }
+
+        // "Kas Bulan Ini" warning: only shown when hitungPinjamanKasRutinBulan() found a real
+        // shortfall — i.e. pengeluaran rutin/lainnya already checked/recorded that month had to
+        // borrow from the Kas reserve because not every warga had paid yet. Fully hidden (icon +
+        // tooltip) once Kas covers it on its own, so it never appears as noise when nothing is wrong.
+        function renderKasWarning(bulan, tahun, iconId, tooltipId) {
+            let icon = document.getElementById(iconId);
+            let tooltip = document.getElementById(tooltipId);
+            if (!icon || !tooltip) return;
+            let pinjaman = hitungPinjamanKasRutinBulan(bulan, tahun);
+            if (pinjaman <= 0) {
+                icon.classList.add('d-none');
+                tooltip.classList.remove('show');
+                tooltip.innerHTML = '';
+                return;
+            }
+            let jumlahBelumLunas = dataWarga.filter(w => !isLunasBulan(w.id, bulan, tahun)).length;
+            icon.classList.remove('d-none');
+            tooltip.innerHTML = `<strong>Kas dipinjam ${formatRp(pinjaman)}</strong>Pengeluaran rutin &amp; lainnya bulan ini sudah tercatat/checked, tapi masih ada ${jumlahBelumLunas} warga yang belum lunas IPL — jadi kekurangannya dipinjam dulu dari saldo Kas.`;
+        }
+
+        // Click-to-toggle tooltip (not hover) so it also works on touch devices. Closing any open
+        // tooltip when tapping elsewhere on the page keeps only one visible at a time.
+        function toggleKasWarningTooltip(evt, tooltipId) {
+            evt.stopPropagation();
+            let tooltip = document.getElementById(tooltipId);
+            if (!tooltip) return;
+            let sudahTerbuka = tooltip.classList.contains('show');
+            document.querySelectorAll('.kas-warning-tooltip.show').forEach(el => el.classList.remove('show'));
+            if (!sudahTerbuka) tooltip.classList.add('show');
+        }
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.kas-warning-tooltip.show').forEach(el => el.classList.remove('show'));
+        });
 
         // Swipe left/right on the Total Saldo card to move one slide at a time
         // Wires swipe-left/right-to-change-slide on one swipe-area element
@@ -3039,7 +3144,17 @@
         // Uang Keluar / Uang Kas — the shared data source for both the PDF and CSV reports.
         function getRingkasanBulanan() {
             let periodeSet = new Set();
-            riwayatPemasukan.forEach(p => { let d = new Date(p.tanggal); periodeSet.add(d.getFullYear() * 12 + d.getMonth()); });
+            // Bucket dues by the IPL PERIOD they were paid for (bulanMulai..bulanAkhir), not by
+            // the transaction date — masukDues below matches on that same period via
+            // isIuranPadaPeriode(). Bucketing by tanggal instead let a late/backdated payment
+            // (e.g. paid in September for August's IPL) fall into a period nothing else matched,
+            // silently dropping it from the WhatsApp/Image/CSV totals while the in-app
+            // hitungPemasukanAllTime() (a plain sum, no period bucketing) still counted it —
+            // that mismatch was the source of the two totals disagreeing.
+            riwayatPemasukan.forEach(p => {
+                expandBulanRange(p.bulanMulai, p.tahunMulai, p.bulanAkhir, p.tahunAkhir)
+                    .forEach(m => periodeSet.add(m.tahun * 12 + m.bulan));
+            });
             dataPengeluaran.forEach(p => { let d = new Date(p.tanggal); periodeSet.add(d.getFullYear() * 12 + d.getMonth()); });
 
             return [...periodeSet].sort((a, b) => a - b).map(v => {
