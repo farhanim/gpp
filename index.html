@@ -631,7 +631,7 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end dl-dropdown-menu">
                         <li><a class="dropdown-item" href="#" onclick="downloadImage(); return false;"><i class="fas fa-file-image"></i> Gambar (PNG)</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="downloadCSV(); return false;"><i class="fas fa-file-csv"></i> CSV</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadExcel(); return false;"><i class="fas fa-file-excel"></i> Excel</a></li>
                     </ul>
                 </div>
             </div>
@@ -1076,6 +1076,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ============================================================
            1. CONFIG & SUPABASE CLIENT
@@ -3146,7 +3147,7 @@
                 `Pengeluaran: ${document.getElementById('period-pengeluaran').innerText}\n` +
                 `Kavling Lunas: ${jumlahLunas}/${totalKavling}\n\n` +
                 `*Agenda Mendatang*\n${teksAgenda}\n\n` +
-                `_Terima kasih atas partisipasi warga._ 🙏`;
+                `_Terima kasih atas partisipasi warga._`;
 
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
@@ -3307,33 +3308,98 @@
 
 
 
-        function downloadCSV() {
+        // Excel export (SheetJS) \u2014 replaces the old single-sheet CSV with a 4-sheet workbook so
+        // the full dataset (not just the monthly summary) can be shared/archived in one file:
+        //   1. Ringkasan     \u2014 same all-time + this-period figures as the WhatsApp/Image report.
+        //   2. Data Warga    \u2014 every kavling with this period's status + all-time payment totals.
+        //   3. Pengeluaran-Pemasukan \u2014 every dues payment, ad-hoc pemasukan, pengeluaran and kasbon.
+        //   4. Agenda-Catatan \u2014 every agenda and catatan entry ever recorded.
+        function downloadExcel() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
             let ringkasan = getRingkasanBulanan();
-
-            let rows = [];
-            rows.push(['Data Keuangan Graha Pesona Pakansari (Semua Waktu)']);
-            rows.push([]);
-            rows.push(['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas']);
             let totalAllTime = hitungTotalAllTimeDariBreakdown();
-            rows.push([formatRp(totalAllTime.pemasukan), formatRp(totalAllTime.pengeluaran), formatRp(totalAllTime.kas)]);
-            rows.push([]);
-            rows.push([`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`]);
-            rows.push(['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini']);
-            rows.push([document.getElementById('period-pemasukan').innerText, document.getElementById('period-pengeluaran').innerText, document.getElementById('period-kasbulanini').innerText]);
-            rows.push([]);
-            rows.push(['Data Setiap Bulan Tercatat']);
-            rows.push(['Bulan', 'Uang Masuk', 'Uang Keluar', 'Uang Kas', 'Aktif?']);
+            let wb = XLSX.utils.book_new();
+
+            // --- Sheet 1: Ringkasan ---
+            let ringkasanRows = [
+                ['Data Keuangan Graha Pesona Pakansari (Semua Waktu)'],
+                [],
+                ['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas'],
+                [formatRp(totalAllTime.pemasukan), formatRp(totalAllTime.pengeluaran), formatRp(totalAllTime.kas)],
+                [],
+                [`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`],
+                ['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini'],
+                [document.getElementById('period-pemasukan').innerText, document.getElementById('period-pengeluaran').innerText, document.getElementById('period-kasbulanini').innerText],
+                [],
+                ['Data Setiap Bulan Tercatat'],
+                ['Bulan', 'Uang Masuk', 'Uang Keluar', 'Uang Kas', 'Aktif?']
+            ];
             ringkasan.forEach(r => {
                 let isAktif = r.bulan === bulan && r.tahun === tahun;
-                rows.push([`${bulanNames[r.bulan]} ${r.tahun}`, formatRp(r.masuk), formatRp(r.keluar), formatRp(r.kas), isAktif ? 'Ya' : '']);
+                ringkasanRows.push([`${bulanNames[r.bulan]} ${r.tahun}`, formatRp(r.masuk), formatRp(r.keluar), formatRp(r.kas), isAktif ? 'Ya' : '']);
             });
+            let wsRingkasan = XLSX.utils.aoa_to_sheet(ringkasanRows);
+            wsRingkasan['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 8 }];
+            XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan');
 
-            let csvContent = rows.map(r => r.join(';')).join('\r\n');
-            let blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a'); a.href = url; a.download = `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.csv`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            // --- Sheet 2: Data Warga ---
+            let wargaRows = [['No', 'Kavling', 'Nama', `Status ${bulanNames[bulan]} ${tahun}`, 'Jumlah Bulan Lunas (Semua Waktu)', 'Total Dibayar (Semua Waktu)']];
+            dataWarga.forEach((w, i) => {
+                let status = isLunasBulan(w.id, bulan, tahun) ? 'Lunas' : 'Belum Lunas';
+                let jumlahBulanLunas = getBulanTerbayar(w.id).size;
+                let target = (w.id || '').toString().trim().toLowerCase();
+                let totalDibayar = riwayatPemasukan
+                    .filter(p => (p.idWarga || '').toString().trim().toLowerCase() === target)
+                    .reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+                wargaRows.push([i + 1, w.id, w.nama, status, jumlahBulanLunas, formatRp(totalDibayar)]);
+            });
+            let wsWarga = XLSX.utils.aoa_to_sheet(wargaRows);
+            wsWarga['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 18 }];
+            XLSX.utils.book_append_sheet(wb, wsWarga, 'Data Warga');
+
+            // --- Sheet 3: Pemasukan (Iuran + Ad-hoc), Pengeluaran & Kasbon \u2014 every transaction ever recorded ---
+            let trxRows = [['PEMASUKAN IURAN WARGA']];
+            trxRows.push(['Tanggal', 'Kavling', 'Keterangan', 'Nominal']);
+            [...riwayatPemasukan].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal)).forEach(p => {
+                trxRows.push([formatTgl(p.tanggal), p.idWarga || '', p.ket || '', formatRp(p.nominal)]);
+            });
+            trxRows.push([]);
+            trxRows.push(['PEMASUKAN LAIN-LAIN']);
+            trxRows.push(['Tanggal', 'Item', 'Nominal']);
+            dataPengeluaran.filter(p => !isKasbon(p) && p.tipe === 'pemasukan')
+                .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+                .forEach(p => trxRows.push([formatTgl(p.tanggal), p.item || '', formatRp(p.nominal)]));
+            trxRows.push([]);
+            trxRows.push(['PENGELUARAN']);
+            trxRows.push(['Tanggal', 'Item', 'Nominal', 'Rutin?']);
+            dataPengeluaran.filter(p => !isKasbon(p) && p.tipe !== 'pemasukan')
+                .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+                .forEach(p => trxRows.push([formatTgl(p.tanggal), p.item || '', formatRp(p.nominal), isPengeluaranGajiSampah(p.item) ? 'Ya' : '']));
+            trxRows.push([]);
+            trxRows.push(['KASBON']);
+            trxRows.push(['Tanggal', 'Nama', 'Nominal', 'Status']);
+            dataPengeluaran.filter(isKasbon)
+                .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+                .forEach(p => trxRows.push([formatTgl(p.tanggal), getKasbonNama(p), formatRp(p.nominal), getKasbonStatus(p) === 'lunas' ? 'Lunas' : 'Belum Lunas']));
+            let wsTrx = XLSX.utils.aoa_to_sheet(trxRows);
+            wsTrx['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 28 }, { wch: 16 }];
+            XLSX.utils.book_append_sheet(wb, wsTrx, 'Pengeluaran-Pemasukan');
+
+            // --- Sheet 4: Agenda & Catatan \u2014 every entry ever recorded ---
+            let agendaCatatanRows = [['AGENDA']];
+            agendaCatatanRows.push(['Tanggal', 'Nama', 'Keterangan']);
+            [...dataAgenda].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+                .forEach(a => agendaCatatanRows.push([formatTgl(a.tanggal), a.nama || '', a.keterangan || '']));
+            agendaCatatanRows.push([]);
+            agendaCatatanRows.push(['CATATAN']);
+            agendaCatatanRows.push(['Tanggal', 'Judul', 'Isi']);
+            [...dataCatatan].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+                .forEach(c => agendaCatatanRows.push([formatTgl(c.tanggal), c.judul || '', c.isi || '']));
+            let wsAgenda = XLSX.utils.aoa_to_sheet(agendaCatatanRows);
+            wsAgenda['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 40 }];
+            XLSX.utils.book_append_sheet(wb, wsAgenda, 'Agenda-Catatan');
+
+            XLSX.writeFile(wb, `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.xlsx`);
         }
 
         /* ============================================================
