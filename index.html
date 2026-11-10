@@ -493,6 +493,7 @@
             transition: var(--transition-smooth);
         }
         .saldo-rekening-line .srk-link:active { transform: scale(0.95); }
+        .saldo-rekening-line .srk-note { display: block; margin-top: 4px; font-size: 0.66rem; font-weight: 600; opacity: 0.85; }
 
         /* === Bottom sheet (Bootstrap modal variant) === */
         .modal.modal-sheet .modal-dialog {
@@ -660,6 +661,7 @@
                     <strong id="saldo-rekening">Rp 0</strong>
                     <button type="button" class="srk-link" onclick="bukaRincianSaldo()">Lihat rincian <i class="fas fa-chevron-right fa-xs ms-1"></i></button>
                 </div>
+                <small class="srk-note" id="saldo-rekening-note" hidden></small>
             </div>
 
             <div class="pt-2 border-top border-dark border-opacity-10 mb-3">
@@ -1834,6 +1836,14 @@
             // see hitungRincianSaldo(). The bottom sheet (bukaRincianSaldo) explains the split.
             let rincian = hitungRincianSaldo(bulan, tahun);
             document.getElementById('saldo-rekening').innerText = formatRp(rincian.saldoRekening);
+            // Why "Uang di rekening" ≠ "Total Kas": list the non-Kas money sitting in the bank
+            let bagianNonKas = [...rincian.ditahan.sekarang.komponen.entries()]
+                .filter(([, v]) => v > 0)
+                .map(([nama, v]) => `${nama === 'Sisa dana rutin' ? 'Sisa dana rutin' : 'Saldo ' + nama} ${formatRp(v)}`);
+            if (rincian.ditahan.dimuka.total > 0) bagianNonKas.push(`Bayar di muka ${formatRp(rincian.ditahan.dimuka.total)}`);
+            let noteEl = document.getElementById('saldo-rekening-note');
+            noteEl.hidden = bagianNonKas.length === 0;
+            noteEl.innerText = bagianNonKas.length ? `Kas + ${bagianNonKas.join(' + ')}` : '';
             renderTunggakanBeranda(rincian);
             if (document.getElementById('modalRincianSaldo').classList.contains('show')) renderRincianSaldo(rincian);
 
@@ -2981,10 +2991,51 @@
         // bulan/tahun, the dues actually collected can fall short of the routine pengeluaran
         // already checked/recorded there — that shortfall has to be borrowed from the Kas reserve
         // instead of being assumed pre-funded. Returns 0 when collected dues already cover it.
+        //
+        // Counted PER KOMPONEN: a komponen that has NOT been checked/paid yet that month (e.g.
+        // BPJS) keeps its collected money as its own saving ("Saldo BPJS") — it can't be used to
+        // cover the shortfall of the komponen that were paid (Gaji/Sampah), so it never leaks
+        // into Kas. Only the paid komponen are netted against what they cost.
         function hitungPinjamanKasRutinBulan(bulan, tahun) {
-            let terkumpul = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length * getPengeluaranRutinPerBulan(bulan, tahun);
-            let terpakai = hitungPengeluaranRutinBulan(bulan, tahun);
-            return Math.max(0, terpakai - terkumpul);
+            return rincianRutinBulan(bulan, tahun).pinjaman;
+        }
+
+        // Per-month routine breakdown:
+        //   pinjaman     — Kas borrowed because paid komponen cost more than their collected dues
+        //   sisaDibayar  — collected dues of paid komponen left over after paying them
+        //   tertahan     — [{ nama, nominal }] komponen collected but not paid/checked yet (savings)
+        //
+        // An unpaid komponen up to the current month is set aside at its FULL amount (rate ×
+        // kavling aktif — the same amount the checklist books, e.g. BPJS Rp 36.000/bulan), not
+        // just what lunas kavling paid. The part not yet collected is lent by Kas, exactly like
+        // a checked komponen, and flows back to Kas once those kavling pay. For months after the
+        // current month (advance payments) only the money actually collected is held, so Kas
+        // never lends for future months. Either way Kas + saldo komponen = real bank money.
+        function rincianRutinBulan(bulan, tahun, lunas) {
+            if (lunas == null) lunas = dataWarga.filter(w => isLunasBulan(w.id, bulan, tahun)).length;
+            let hariIni = new Date();
+            let jumlahKavling = getWargaAktif().length;
+            let totalKeluar = hitungPengeluaranRutinBulan(bulan, tahun);
+            let komponen = getPengeluaranRutinAktif(bulan, tahun).map(k => {
+                let tarif = parseInt(k.nominal) || 0;
+                return { nama: k.nama, tarif, masuk: lunas * tarif, keluar: jumlahTransaksiKomponen(k.nama, bulan, tahun) };
+            });
+            // Full set-aside only once that month's routine payouts have started (some komponen
+            // already paid/checked, e.g. Gaji & Sampah but not BPJS) and the month isn't in the
+            // future. Before any komponen is paid, just the collected money is held — so Kas
+            // doesn't drop by a whole month of obligations on the 1st.
+            let sisihkanPenuh = totalKeluar > 0 && tahun * 12 + bulan <= hariIni.getFullYear() * 12 + hariIni.getMonth();
+            let masukSemua = 0, keluarCocok = 0, disisihkan = 0, tertahan = [];
+            komponen.forEach(k => {
+                masukSemua += k.masuk;
+                if (k.keluar > 0) { keluarCocok += k.keluar; return; }
+                let sisih = sisihkanPenuh ? k.tarif * jumlahKavling : k.masuk;
+                if (sisih > 0) { disisihkan += sisih; tertahan.push({ nama: k.nama, nominal: sisih }); }
+            });
+            // Routine pengeluaran that doesn't match any active komponen still counts as paid out
+            let keluarLain = Math.max(0, totalKeluar - keluarCocok);
+            let selisih = masukSemua - keluarCocok - keluarLain - disisihkan;
+            return { pinjaman: Math.max(0, -selisih), sisaDibayar: Math.max(0, selisih), tertahan };
         }
 
         // Same shortfall as hitungPinjamanKasRutinBulan(), summed across every bulan/tahun that
@@ -3266,7 +3317,8 @@
             });
             let semuaBulan = new Set([...lunasPerBulan.keys(), ...bulanRutinOut]);
 
-            let buatBucket = () => ({ total: 0, komponen: new Map() });
+            // komponen: nama -> total; perBulan: nama -> [{ key, nominal }] (for the per-period tooltip)
+            let buatBucket = () => ({ total: 0, komponen: new Map(), perBulan: new Map() });
             let ditahan = { sekarang: buatBucket(), dimuka: buatBucket() };
             let tagihanTercatat = 0, kasDimuka = 0;
             let pinjamanPerBulan = [];
@@ -3277,21 +3329,20 @@
                 tagihanTercatat += lunas * getTagihanPerBulan(b, t);
                 if (key > P) kasDimuka += lunas * getKasPerBulan(b, t);
 
-                let pinjam = hitungPinjamanKasRutinBulan(b, t);
-                if (pinjam > 0) pinjamanPerBulan.push({ key, nominal: pinjam });
+                // Uses the same lunas count as hitungPinjamanKasRutinBulan (dataWarga), so the
+                // pinjaman listed here matches the one deducted in hitungKasAllTime().
+                let rr = rincianRutinBulan(b, t, lunas);
+                if (rr.pinjaman > 0) pinjamanPerBulan.push({ key, nominal: rr.pinjaman });
 
-                let sisa = lunas * getPengeluaranRutinPerBulan(b, t) - hitungPengeluaranRutinBulan(b, t);
-                if (sisa <= 0) return;
                 let bucket = key > P ? ditahan.dimuka : ditahan.sekarang;
-                bucket.total += sisa;
-                let terurai = 0;
-                getPengeluaranRutinAktif(b, t).forEach(k => {
-                    let v = lunas * (parseInt(k.nominal) || 0) - jumlahTransaksiKomponen(k.nama, b, t);
-                    if (!v) return;
-                    bucket.komponen.set(k.nama, (bucket.komponen.get(k.nama) || 0) + v);
-                    terurai += v;
-                });
-                if (sisa !== terurai) bucket.komponen.set('Lainnya', (bucket.komponen.get('Lainnya') || 0) + sisa - terurai);
+                let tambah = (nama, nominal) => {
+                    bucket.total += nominal;
+                    bucket.komponen.set(nama, (bucket.komponen.get(nama) || 0) + nominal);
+                    if (!bucket.perBulan.has(nama)) bucket.perBulan.set(nama, []);
+                    bucket.perBulan.get(nama).push({ key, nominal });
+                };
+                rr.tertahan.forEach(x => tambah(x.nama, x.nominal));
+                if (rr.sisaDibayar > 0) tambah('Sisa dana rutin', rr.sisaDibayar);
             });
 
             // Kavling that paid ahead of P
@@ -3456,6 +3507,28 @@
                 return (judul ? `<strong class="d-block mb-1">${judul}</strong>` : '') + isi;
             };
 
+            // One "Saldo <komponen>" row per routine komponen still holding collected money up to P
+            // (e.g. BPJS not yet paid/checked) — it's NOT part of Kas, it sits in the bank as that
+            // komponen's own saving until it's paid out. Tooltip lists each unpaid period.
+            let rowsSaldoRutin = [...r.ditahan.sekarang.komponen.entries()]
+                .filter(([, total]) => total > 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(([nama, total], i) => {
+                    let daftar = (r.ditahan.sekarang.perBulan.get(nama) || []).slice().sort((a, b) => b.key - a.key);
+                    let isSisa = nama === 'Sisa dana rutin';
+                    let tip = (isSisa ? '' : `<strong class="d-block mb-1" style="color: var(--warning);">Periode ${escapeHtml(nama)} belum dibayarkan</strong>`)
+                        + tipLines(daftar.map(x => [labelBulanKey(x.key), x.nominal]), total)
+                        + `<div class="tip-note">${isSisa
+                            ? 'Iuran gaji/sampah yang terkumpul lebih besar dari yang dibayarkan bulan itu.'
+                            : `Disisihkan penuh per bulan (tarif × semua kavling aktif), disimpan di rekening sampai dibayarkan. Bagian dari kavling yang belum bayar ditalangi kas dulu. Bukan bagian dari Kas — ceklis di Transaksi &gt; Pengeluaran saat sudah dibayar.`}</div>`;
+                    return row({
+                        id: `tipSaldoRutin${i}`, warna: 'var(--warning)',
+                        judul: isSisa ? 'Sisa dana gaji & sampah' : `Saldo ${escapeHtml(nama)}`,
+                        sub: isSisa ? `${daftar.length} bulan` : `Belum dibayarkan · ${daftar.length} bulan (s.d. ${labelBulanKey(P, true)})`,
+                        nominal: total, tip
+                    });
+                }).join('');
+
             let html = `<div class="rs-hero">
                     <div class="rs-eyebrow">Uang di rekening (dihitung dari catatan)</div>
                     <div class="rs-total">${formatRp(r.saldoRekening)}</div>
@@ -3463,7 +3536,7 @@
                 </div>
                 <div class="rs-list">
                     ${row({ id: 'tipKas', warna: 'var(--primary)', judul: 'Kas', sub: 'Total Kas Saat Ini', nominal: r.kas, tip: kasTip })}
-                    ${row({ id: 'tipRutin', warna: 'var(--warning)', judul: 'Pengeluaran gaji, sampah & BPJS', sub: `Dana sudah terkumpul, belum dibayarkan s.d. ${labelBulanKey(P, true)}`, nominal: r.ditahan.sekarang.total, tip: r.ditahan.sekarang.total ? komponenTip(r.ditahan.sekarang) + '<div class="tip-note">Akan keluar dari rekening saat dibayarkan & diceklis di Transaksi.</div>' : null })}
+                    ${rowsSaldoRutin || row({ id: 'tipRutin', warna: 'var(--warning)', judul: 'Saldo gaji, sampah & BPJS', sub: `Semua sudah dibayarkan s.d. ${labelBulanKey(P, true)}`, nominal: 0, tip: null })}
                     ${row({ id: 'tipDimuka', warna: 'var(--ink)', judul: 'IPL lunas sekaligus (bulan ke depan)', sub: dimukaSub, nominal: r.ditahan.dimuka.total, tip: dimukaTip })}
                     ${r.selisih ? row({ id: 'tipSelisih', warna: '#B8C4C2', judul: 'Selisih pembayaran', sub: 'Nominal dibayar beda dengan tagihan standar', nominal: r.selisih, tip: null }) : ''}
                 </div>`;
@@ -3492,7 +3565,7 @@
             let tipPinjaman = r.pinjamanPerBulan.length
                 ? '<strong class="d-block mb-1" style="color: var(--warning);">Kas dipinjam karena belum semua kavling lunas IPL</strong>'
                   + tipLines(r.pinjamanPerBulan.map(p => [labelBulanKey(p.key), p.nominal]), r.pinjaman)
-                  + '<div class="tip-note">Gaji, sampah & BPJS dibayar penuh tiap bulan, sementara iuran dari kavling yang belum bayar belum masuk. Kekurangannya ditalangi dari kas dan kembali saat kavling tersebut melunasi IPL.</div>'
+                  + '<div class="tip-note">Gaji, sampah & BPJS dibayar (atau disisihkan) penuh tiap bulan, sementara iuran dari kavling yang belum bayar belum masuk. Kekurangannya ditalangi dari kas dan kembali ke kas saat kavling tersebut melunasi IPL.</div>'
                 : null;
 
             html += `<div class="rs-section">Asal Total Kas</div>
