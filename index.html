@@ -481,6 +481,148 @@
         .bulan-chip.akan { background: #F3F4F6; color: var(--text-muted); }
         .bulan-chip.lunas-muka { background: #BAF0CB; }
         .bulan-chip.current { box-shadow: 0 0 0 2px var(--ink); }
+
+        /* === "Uang di rekening" CTA inside the Total Kas header card === */
+        .saldo-rekening-line { color: #fff; margin: 12px 0 14px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+        .saldo-rekening-line small { display: block; font-size: 0.7rem; font-weight: 700; opacity: 0.85; }
+        .saldo-rekening-line .srk-value { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+        .saldo-rekening-line strong { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.02em; }
+        .saldo-rekening-line .srk-link {
+            border: none; background: #fff; color: var(--primary-dark); border-radius: 999px;
+            padding: 4px 10px; font-size: 0.7rem; font-weight: 800; white-space: nowrap;
+            transition: var(--transition-smooth);
+        }
+        .saldo-rekening-line .srk-link:active { transform: scale(0.95); }
+
+        /* === Bottom sheet (Bootstrap modal variant) === */
+        .modal.modal-sheet .modal-dialog {
+            position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto;
+            width: 100%; max-width: 560px; max-height: 90vh; height: auto;
+        }
+        .modal.modal-sheet.fade .modal-dialog { transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal.modal-sheet.show .modal-dialog { transform: none; }
+        .modal.modal-sheet .modal-content { border-radius: 28px 28px 0 0; max-height: 90vh; }
+        .modal.modal-sheet .modal-body { overflow-y: auto; padding-bottom: 30px; }
+        .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(38, 51, 59, 0.15); margin: 10px auto 0; }
+
+        /* Rincian Saldo content */
+        .rs-hero { background: var(--primary-soft); border-radius: 20px; padding: 14px 16px; margin-bottom: 12px; }
+        .rs-eyebrow { font-size: 0.72rem; font-weight: 700; color: var(--primary-dark); }
+        .rs-total { font-size: 1.5rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; margin: 2px 0 10px; }
+        .rs-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(38, 51, 59, 0.08); gap: 2px; }
+        .rs-bar span { height: 100%; }
+        .rs-section { font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 18px 2px 8px; }
+        .rs-list { display: flex; flex-direction: column; gap: 6px; }
+        .rs-row {
+            width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+            background: #fff; border: 1px solid rgba(38, 51, 59, 0.08); border-radius: 16px; padding: 11px 12px;
+            color: var(--ink); transition: var(--transition-smooth);
+        }
+        button.rs-row:hover { border-color: rgba(20, 184, 166, 0.4); }
+        .rs-row.is-warn { background: #FFFBF3; border-color: rgba(245, 166, 35, 0.3); }
+        .rs-dot { width: 10px; height: 10px; min-width: 10px; border-radius: 4px; }
+        .rs-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .rs-row-title { font-size: 0.82rem; font-weight: 800; }
+        .rs-row-sub { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
+        .rs-row-amount { font-size: 0.85rem; font-weight: 800; white-space: nowrap; }
+        .rs-row .rs-info { color: var(--text-muted); font-size: 0.8rem; }
+        .info-tip {
+            display: none; position: relative; margin: 2px 0 4px; background: var(--ink); color: #fff;
+            border-radius: 14px; padding: 10px 12px; font-size: 0.72rem; font-weight: 600; line-height: 1.5;
+        }
+        .info-tip.show { display: block; }
+        .info-tip::before { content: ''; position: absolute; bottom: 100%; right: 22px; border: 6px solid transparent; border-bottom-color: var(--ink); }
+        .info-tip .tip-line { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+        .info-tip .tip-line span:last-child { white-space: nowrap; font-weight: 800; }
+        .info-tip .tip-line.total { border-top: 1px solid rgba(255, 255, 255, 0.2); margin-top: 4px; padding-top: 6px; }
+        .info-tip .tip-note { opacity: 0.75; margin-top: 4px; }
+        .info-tip .tip-month { font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; margin-top: 8px; padding-bottom: 2px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+        .info-tip strong + .tip-month { margin-top: 2px; }
+        .rs-calc { background: #fff; border: 1px solid rgba(38, 51, 59, 0.08); border-radius: 16px; padding: 6px 14px; }
+        .rs-calc-line { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 7px 0; font-size: 0.8rem; font-weight: 600; color: var(--ink); text-align: left; background: none; border: none; border-bottom: 1px dashed rgba(38, 51, 59, 0.1); }
+        .rs-calc-line:last-child { border-bottom: none; }
+        .rs-calc-line .rs-calc-amt { display: flex; align-items: center; gap: 8px; }
+        .rs-calc .info-tip { margin: 4px 0 8px; }
+        .rs-calc-line .sub { display: block; font-size: 0.68rem; color: var(--text-muted); }
+        .rs-calc-line .plus { color: #16803D; font-weight: 800; white-space: nowrap; }
+        .rs-calc-line .minus { color: #C42B37; font-weight: 800; white-space: nowrap; }
+        .rs-calc-line.total { font-weight: 800; border-top: 1.5px solid var(--ink); border-bottom: none; margin-top: 2px; }
+        .rs-note { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin: 14px 2px 0; line-height: 1.5; }
+
+        /* === Beranda: compact "Belum Bayar IPL" card === */
+        /* Nonaktif kavling: muted card in Tagihan Warga + toggle row in Edit Data Warga */
+        .card-warga.is-nonaktif { background: #FAFAFA; box-shadow: none; }
+        .card-warga.is-nonaktif .data-info label, .card-warga.is-nonaktif .data-info p:first-of-type { color: var(--text-muted); }
+        .kavling-aktif-toggle {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+            border: 2px solid #E5E7EB; border-radius: 16px; padding: 12px 14px;
+        }
+        .kavling-aktif-toggle strong { display: block; font-size: 0.88rem; color: var(--ink); }
+        .kavling-aktif-toggle small { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+        .kavling-aktif-toggle .form-check-input { width: 2.6em; height: 1.4em; cursor: pointer; }
+        .kavling-aktif-toggle .form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+
+        /* "Selengkapnya" toggle for long agenda/catatan descriptions */
+        .btn-baca { border: none; background: none; padding: 0; font: inherit; font-weight: 800; color: var(--primary-dark); cursor: pointer; }
+        .btn-baca:hover { text-decoration: underline; }
+
+        /* Progres Iuran split bar (lunas teal + belum red) and the Belum Bayar section inside it */
+        .progress-split { display: flex; }
+        .progress-split .progress-fill { flex-shrink: 0; }
+        .progress-fill-belum { height: 100%; background: var(--coral); border-radius: 20px; flex-shrink: 0; margin-left: 2px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .progress-fill-belum[style*="width: 0%"] { display: none; }
+        .card-summary .tg-section p.tg-title { opacity: 1; font-size: 0.85rem; }
+        .progres-lunas-label { font-size: 0.78rem; font-weight: 800; color: var(--primary-dark); white-space: nowrap; }
+        .progres-lunas-label i { font-size: 0.45rem; vertical-align: 2px; margin-right: 5px; color: var(--primary); }
+        .progres-belum-label { font-size: 0.78rem; font-weight: 800; color: #C42B37; white-space: nowrap; }
+        .progres-belum-label i { font-size: 0.45rem; vertical-align: 2px; margin-right: 5px; color: var(--coral); }
+        .tg-section { margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(38, 51, 59, 0.12); }
+        .tg-section.is-clear .tg-title i { color: var(--success); }
+
+        .tunggakan-card {
+            background: var(--card-bg); border-radius: var(--card-radius); padding: 18px 20px; margin-bottom: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 10px 30px rgba(10, 10, 10, 0.04);
+        }
+        .tg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .tg-title { margin: 0; font-size: 0.85rem; font-weight: 800; color: var(--ink); }
+        .tg-title i { color: var(--coral); margin-right: 4px; }
+        .tunggakan-card.is-clear .tg-title i { color: var(--success); }
+        .tg-sub { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+        .tg-pill { font-size: 0.7rem; font-weight: 800; color: #C42B37; background: var(--danger-soft); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+        /* Chips + "Lihat rincian" stay on ONE row: chips scroll horizontally, button pinned right */
+        .tg-chip-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+        .tg-chips { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+        .tg-chips::-webkit-scrollbar { display: none; }
+        /* flex-shrink: 0 everywhere — without it the track/group could shrink to the chips'
+           min-content width, making the duplicated group start too early and overlap chips. */
+        .tg-track { display: flex; width: max-content; flex-shrink: 0; }
+        .tg-group { display: flex; gap: 6px; padding-right: 6px; flex-shrink: 0; }
+        .tg-chip { white-space: nowrap; }
+        /* Marquee is driven by JS through scrollLeft (see aturMarqueeTunggakan), so the row
+           stays a normal horizontal scroller the user can still swipe by hand. */
+        .tg-chips.is-marquee {
+            -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+                    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+        }
+        .tg-chip {
+            flex-shrink: 0; border: none; border-radius: 12px; padding: 6px 10px; font-size: 0.72rem; font-weight: 700;
+            background: var(--warning-soft); color: #8A5A05; display: flex; align-items: center; gap: 5px;
+        }
+        .tg-chip.is-late { background: var(--danger-soft); color: #C42B37; }
+        .tg-chip b { font-weight: 800; }
+        .tg-toggle {
+            flex-shrink: 0; white-space: nowrap; border: none; border-radius: 12px; padding: 6px 10px;
+            background: var(--primary-soft); font-size: 0.72rem; font-weight: 800; color: var(--primary-dark);
+        }
+        .tg-toggle i { transition: transform 0.2s ease; margin-left: 2px; }
+        .tg-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+        .tg-detail { margin-top: 6px; border-top: 1px solid rgba(38, 51, 59, 0.08); }
+        .tg-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(38, 51, 59, 0.06); cursor: pointer; }
+        .tg-row:last-child { border-bottom: none; }
+        .tg-row-main { flex: 1; min-width: 0; }
+        .tg-row-main b { font-size: 0.8rem; color: var(--ink); }
+        .tg-row-main span { display: block; font-size: 0.68rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tg-row-amount { font-size: 0.8rem; font-weight: 800; color: #C42B37; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -510,6 +652,14 @@
                     <h3 id="saldo-global" class="fs-4 mb-0">Rp 0</h3>
                 </div>
                 <div class="icon-bg fs-3 opacity-50" style="color: white;"><i class="fas fa-coins"></i></div>
+            </div>
+
+            <div class="saldo-rekening-line">
+                <small><i class="fas fa-wallet me-1"></i>Uang di rekening</small>
+                <div class="srk-value">
+                    <strong id="saldo-rekening">Rp 0</strong>
+                    <button type="button" class="srk-link" onclick="bukaRincianSaldo()">Lihat rincian <i class="fas fa-chevron-right fa-xs ms-1"></i></button>
+                </div>
             </div>
 
             <div class="pt-2 border-top border-dark border-opacity-10 mb-3">
@@ -557,8 +707,31 @@
                 <p class="m-0" style="color: var(--text-dark); opacity: 0.7;">Progres Iuran <span id="progres-bulanlabel"></span></p>
                 <span class="fw-extrabold" id="progres-persen" style="color: var(--primary-dark); font-size: 0.9rem;">0%</span>
             </div>
-            <div class="progress-track"><div class="progress-fill" id="progres-bar" style="width: 0%;"></div></div>
-            <p class="m-0 mt-2 fw-semibold" id="progres-label" style="font-size: 0.85rem; color: var(--text-muted);">0 dari 0 Warga Lunas</p>
+            <!-- Split bar: teal = kavling lunas bulan ini, red = kavling belum bayar bulan ini -->
+            <div class="progress-track progress-split" role="img" id="progres-track" aria-label="0 dari 0 warga lunas">
+                <div class="progress-fill" id="progres-bar" style="width: 0%;"></div>
+                <div class="progress-fill-belum" id="progres-bar-belum" style="width: 0%;"></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2 gap-2">
+                <span class="progres-lunas-label" id="progres-label">0 dari 0 Warga Lunas</span>
+                <span class="progres-belum-label" id="progres-belum-label"></span>
+            </div>
+
+        <!-- Kavling yang masih punya tunggakan IPL sampai periode aktif — see renderTunggakanBeranda() -->
+        <div class="tg-section" id="tunggakanCard">
+            <div class="tg-head">
+                <div style="min-width: 0;">
+                    <p class="tg-title" id="tunggakanTitle"><i class="fas fa-circle-exclamation"></i>Belum Bayar IPL</p>
+                    <span class="tg-sub" id="tunggakanSub"></span>
+                </div>
+                <span class="tg-pill" id="tunggakanPill">0 kavling</span>
+            </div>
+            <div class="tg-chip-row">
+                <div class="tg-chips no-tab-swipe" id="tunggakanChips"></div>
+                <button type="button" class="tg-toggle" id="tunggakanToggle" aria-expanded="false" aria-controls="tunggakanDetail" onclick="toggleTunggakanDetail()">Lihat rincian <i class="fas fa-chevron-down fa-xs"></i></button>
+            </div>
+            <div class="tg-detail" id="tunggakanDetail" hidden></div>
+        </div>
         </div>
 
         <!-- Unified financial summary: saldo saat ini + pemasukan/pengeluaran comparison -->
@@ -905,6 +1078,23 @@
         </div>
     </div>
 
+    <!-- BOTTOM SHEET RINCIAN SALDO — see renderRincianSaldo() -->
+    <div class="modal fade modal-sheet" id="modalRincianSaldo" tabindex="-1" aria-labelledby="rincianSaldoTitle">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="sheet-handle"></div>
+                <div class="modal-header pt-3">
+                    <div>
+                        <h5 class="modal-title fw-bold m-0" id="rincianSaldoTitle">Rincian Saldo</h5>
+                        <small class="text-muted fw-bold" id="rincianSaldoPeriode"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body pt-0" id="rincianSaldoBody"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DETAIL WARGA -->
     <div class="modal fade" id="modalDetailWarga" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -946,6 +1136,15 @@
                     <input type="hidden" id="idxWargaEdit">
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Nama Warga</label><input type="text" class="form-control" id="inputEditNama"></div>
                     <div class="mb-3"><label class="form-label text-muted small fw-bold">Kavling / ID</label><input type="text" class="form-control" id="inputEditKav" disabled></div>
+                    <label class="kavling-aktif-toggle" for="inputEditAktif">
+                        <span>
+                            <strong>Kavling aktif</strong>
+                            <small id="inputEditAktifHint">Berpenghuni dan ditagih IPL setiap bulan</small>
+                        </span>
+                        <span class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="inputEditAktif" onchange="updateHintAktif()">
+                        </span>
+                    </label>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-action w-100 m-0" style="background: var(--text-dark); color: white; padding: 16px;" onclick="simpanEditWarga()">Simpan</button></div>
             </div>
@@ -1143,6 +1342,7 @@
         // Bootstrap modal instances (assigned on DOMContentLoaded)
         let modalBayar = null, modalDetail = null, modalEdit = null, modalRekening = null, modalKomponen = null, modalAgenda = null;
         let modalPengeluaran = null, modalCatatan = null, modalKonfirmasi = null, modalLogin = null, modalLogout = null;
+        let modalRincianSaldo = null;
 
         // Warga detail modal state
         let idxWargaDetail = null, tahunDetailAktif = new Date().getFullYear();
@@ -1165,6 +1365,7 @@
             modalKonfirmasi = new bootstrap.Modal(document.getElementById('modalKonfirmasiHapus'));
             modalLogin = new bootstrap.Modal(document.getElementById('modalLogin'));
             modalLogout = new bootstrap.Modal(document.getElementById('modalKonfirmasiLogout'));
+            modalRincianSaldo = new bootstrap.Modal(document.getElementById('modalRincianSaldo'));
             document.getElementById('btnKonfirmasiLogout').addEventListener('click', () => {
                 modalLogout.hide();
                 logout();
@@ -1591,18 +1792,31 @@
         /* ============================================================
            7. DASHBOARD (BERANDA)
            ============================================================ */
+        // A kavling is "aktif" (berpenghuni, ditagih IPL) unless warga.aktif is explicitly false —
+        // rows saved before the column existed count as aktif. Nonaktif kavling (kosong / tidak
+        // ada pemilik) are left out of billing: progres, tunggakan, tagihan rutin per kavling.
+        // Payments they made earlier still count everywhere money is summed, since that cash is real.
+        function isWargaAktif(w) { return w && w.aktif !== false && w.aktif !== 'false'; }
+        function getWargaAktif() { return dataWarga.filter(isWargaAktif); }
+
         // Progres Iuran always follows the Beranda month/year filter (#filterBulan / #filterTahun)
         function renderProgresBulanIni() {
             let curMonth = parseInt(document.getElementById('filterBulan').value);
             let curYear = parseInt(document.getElementById('filterTahun').value);
-            let total = dataWarga.length;
-            let lunas = dataWarga.filter(w => isLunasBulan(w.id, curMonth, curYear)).length;
+            let wargaAktif = getWargaAktif();
+            let total = wargaAktif.length;
+            let lunas = wargaAktif.filter(w => isLunasBulan(w.id, curMonth, curYear)).length;
             let persen = total === 0 ? 0 : Math.round((lunas / total) * 100);
 
             document.getElementById('progres-bulanlabel').innerText = `${bulanNames[curMonth]} ${curYear}`;
             document.getElementById('progres-persen').innerText = `${persen}%`;
+            let belum = total - lunas;
+            let persenBelum = total === 0 ? 0 : 100 - persen;
             document.getElementById('progres-bar').style.width = `${persen}%`;
-            document.getElementById('progres-label').innerText = `${lunas} dari ${total} Warga Lunas`;
+            document.getElementById('progres-bar-belum').style.width = `${persenBelum}%`;
+            document.getElementById('progres-label').innerHTML = `<i class="fas fa-circle"></i>${lunas} dari ${total} Warga Lunas`;
+            document.getElementById('progres-belum-label').innerHTML = belum > 0 ? `<i class="fas fa-circle"></i>${belum} belum bayar` : '';
+            document.getElementById('progres-track').setAttribute('aria-label', `${lunas} dari ${total} warga lunas, ${belum} belum bayar`);
         }
 
         // Recalculates every Beranda summary card for the selected #filterBulan / #filterTahun,
@@ -1616,6 +1830,12 @@
             // dataset, including later months with existing masuk/lunas data, not just the
             // currently selected filter period.
             document.getElementById('saldo-global').innerText = formatRp(hitungKasAllTime());
+            // "Uang di rekening" = Kas + iuran rutin yang belum dibayarkan + bayar di muka —
+            // see hitungRincianSaldo(). The bottom sheet (bukaRincianSaldo) explains the split.
+            let rincian = hitungRincianSaldo(bulan, tahun);
+            document.getElementById('saldo-rekening').innerText = formatRp(rincian.saldoRekening);
+            renderTunggakanBeranda(rincian);
+            if (document.getElementById('modalRincianSaldo').classList.contains('show')) renderRincianSaldo(rincian);
 
             let periodIn = riwayatPemasukan.filter(t => isIuranPadaPeriode(t, bulan, tahun)).reduce((a, c) => a + parseInt(c.nominal), 0);
             let periodOut = dataPengeluaran
@@ -1669,6 +1889,24 @@
             updateNominalIplDisplays();
 
             dataWarga.forEach((w, index) => {
+                if (!isWargaAktif(w)) {
+                    container.innerHTML += `
+                    <div class="data-card card-warga is-nonaktif">
+                        <div class="d-flex align-items-top gap-3 w-100">
+                            <div class="icon-box" style="background:#F3F4F6; color: var(--text-muted);"><i class="fas fa-house-circle-xmark"></i></div>
+                            <div class="data-info">
+                                <label class="fw-bold">${escapeHtml(w.id)}</label>
+                                <p>${escapeHtml(w.nama || 'Kavling kosong')}</p>
+                                <p class="status-badge" style="font-size:8pt; padding: 2px 12px; background: #F3F4F6; color: var(--text-muted);">Nonaktif · tidak ditagih IPL</p>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <button type="button" class="btn-icon-sm" onclick="bukaDetailWarga(${index})"><i class="fas fa-calendar-alt"></i></button>
+                                <button type="button" class="btn-icon-sm" onclick="bukaEditWarga(${index})"><i class="fas fa-pen"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                    return;
+                }
                 let infoStatus = getStatusWargaTeks(w.id, activeMonth, activeYear);
                 let lunas = infoStatus.status === 'lunas';
                 container.innerHTML += `
@@ -1877,20 +2115,40 @@
             document.getElementById('idxWargaEdit').value = index;
             document.getElementById('inputEditNama').value = dataWarga[index].nama;
             document.getElementById('inputEditKav').value = dataWarga[index].id;
+            document.getElementById('inputEditAktif').checked = isWargaAktif(dataWarga[index]);
+            updateHintAktif();
             modalEdit.show();
+        }
+
+        function updateHintAktif() {
+            let aktif = document.getElementById('inputEditAktif').checked;
+            document.getElementById('inputEditAktifHint').innerText = aktif
+                ? 'Berpenghuni dan ditagih IPL setiap bulan'
+                : 'Kavling kosong / belum ada pemilik — tidak ditagih IPL';
         }
 
         async function simpanEditWarga() {
             let idx = parseInt(document.getElementById('idxWargaEdit').value);
             let w = dataWarga[idx];
             let nama = document.getElementById('inputEditNama').value;
+            let aktif = document.getElementById('inputEditAktif').checked;
+
+            let payload = { nama };
+            // Only send `aktif` when it changed, so editing a name still works on databases
+            // where the column hasn't been added yet.
+            if (aktif !== isWargaAktif(w)) payload.aktif = aktif;
 
             let { error } = await supabaseClient
                 .from('warga')
-                .update({ nama })
+                .update(payload)
                 .eq('id', w.id);
 
-            if (error) return alert('Gagal: ' + error.message);
+            if (error) {
+                if ('aktif' in payload && /aktif/i.test(error.message)) {
+                    return alert('Kolom "aktif" belum ada di tabel warga.\n\nJalankan SQL ini di Supabase (SQL Editor) lalu coba lagi:\n\nalter table warga add column aktif boolean not null default true;');
+                }
+                return alert('Gagal: ' + error.message);
+            }
 
             await loadDataFromDatabase();
             modalEdit.hide();
@@ -1905,7 +2163,7 @@
         // pengeluaran transactions only; Kas Bulan Ini stays the dues-based Kas formula, unchanged.
         function renderRutinSummary(bulan, tahun, rutinAktif, kasbonAktif) {
             let totalRutin = rutinAktif.reduce((total, k) => {
-                return total + (parseInt(k.nominal) || 0) * dataWarga.length;
+                return total + (parseInt(k.nominal) || 0) * getWargaAktif().length;
             }, 0);
             let totalKasbon = kasbonAktif
                 .filter(p => getKasbonStatus(p) !== 'lunas')
@@ -1977,7 +2235,7 @@
                         // Komponen Tagihan stores the PER-KAVLING portion (e.g. Rp65.000 for Gaji
                         // Keamanan) — the actual routine expense is that rate collected across every
                         // kavling, so multiply by the number of warga to get the real amount owed.
-                        let totalNominal = (parseInt(k.nominal) || 0) * dataWarga.length;
+                        let totalNominal = (parseInt(k.nominal) || 0) * getWargaAktif().length;
                         return `<div class="rutin-checklist-card ${checked ? 'is-paid' : ''}">
                             <div class="d-flex align-items-start gap-3 flex-grow-1">
                                 <div class="icon-box icon-expense"><i class="fas fa-receipt"></i></div>
@@ -2250,6 +2508,24 @@
         /* ============================================================
            10. CATATAN
            ============================================================ */
+        // Long agenda/catatan descriptions: show the first MAKS_KATA_DESKRIPSI words with a
+        // "Selengkapnya" button that expands to the full text (and "Sembunyikan" to collapse).
+        const MAKS_KATA_DESKRIPSI = 25;
+        function teksBacaSelengkapnya(teks, maks = MAKS_KATA_DESKRIPSI) {
+            let kata = String(teks || '').trim().split(/\s+/).filter(Boolean);
+            if (kata.length <= maks) return escapeHtml(teks);
+            return `<span class="teks-ringkas">${escapeHtml(kata.slice(0, maks).join(' '))}… </span>`
+                + `<span class="teks-penuh" hidden>${escapeHtml(teks)} </span>`
+                + `<button type="button" class="btn-baca" aria-expanded="false" onclick="toggleBacaSelengkapnya(this)">Lihat selengkapnya</button>`;
+        }
+        function toggleBacaSelengkapnya(btn) {
+            let buka = btn.getAttribute('aria-expanded') !== 'true';
+            btn.parentElement.querySelector('.teks-ringkas').hidden = buka;
+            btn.parentElement.querySelector('.teks-penuh').hidden = !buka;
+            btn.setAttribute('aria-expanded', buka);
+            btn.innerText = buka ? 'Lihat lebih sedikit' : 'Lihat selengkapnya';
+        }
+
         function renderCatatan() {
             const container = document.getElementById('list-catatan'); container.innerHTML = '';
             dataCatatan.forEach(c => {
@@ -2261,7 +2537,7 @@
                                 <h6 class="m-0">${c.judul}</h6>
                                 <label class="text-muted fw-bold text-nowrap m-0" style="font-size:7pt;">${formatTgl(c.tanggal)}</label>
                             </div>
-                            <p class="text-dark mt-2 mb-0">${c.isi}</p>
+                            <p class="text-dark mt-2 mb-0">${teksBacaSelengkapnya(c.isi)}</p>
                         </div>
                     </div>
                     <button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditCatatan(${c.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>
@@ -2342,7 +2618,7 @@
                             </div>
                             <span class="status-badge flex-shrink-0" style="font-size:7pt; background: var(--primary-soft); color: var(--primary-dark);">${badge}</span>
                         </div>
-                        ${a.keterangan ? `<p class="text-muted mb-0 mt-1" style="font-size:8pt;">${a.keterangan}</p>` : ''}
+                        ${a.keterangan ? `<p class="text-muted mb-0 mt-1" style="font-size:8pt;">${teksBacaSelengkapnya(a.keterangan)}</p>` : ''}
                     </div>
                 </div>
                 ${showActions ? `<button type="button" class="btn-edit-full w-100 mt-3" onclick="bukaEditAgenda(${a.id})"><i class="fas fa-pen fa-xs"></i> Ubah</button>` : ''}
@@ -2910,7 +3186,7 @@
                 tooltip.innerHTML = '';
                 return;
             }
-            let jumlahBelumLunas = dataWarga.filter(w => !isLunasBulan(w.id, bulan, tahun)).length;
+            let jumlahBelumLunas = getWargaAktif().filter(w => !isLunasBulan(w.id, bulan, tahun)).length;
             icon.classList.remove('d-none');
             tooltip.innerHTML = `<strong>Kas dipinjam ${formatRp(pinjaman)}</strong>Pengeluaran gaji dan sampah &amp; bulan ini sudah dibayar, tapi masih ada ${jumlahBelumLunas} warga yang belum lunas IPL — jadi kekurangannya dipinjam dulu dari saldo Kas.`;
         }
@@ -2928,6 +3204,472 @@
         document.addEventListener('click', () => {
             document.querySelectorAll('.kas-warning-tooltip.show').forEach(el => el.classList.remove('show'));
         });
+
+        /* ============================================================
+           RINCIAN SALDO (uang di rekening) + TUNGGAKAN KAVLING
+           ============================================================ */
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function labelBulanKey(key, pendek) {
+            let b = key % 12, t = Math.floor(key / 12);
+            return `${pendek ? bulanNames[b].slice(0, 3) : bulanNames[b]} ${t}`;
+        }
+
+        // Sum of routine pengeluaran recorded in one month whose name matches ONE komponen
+        // (same name matching as cariTransaksiRutin, but summing every match).
+        function jumlahTransaksiKomponen(namaKomponen, bulan, tahun) {
+            let sd = new Date(tahun, bulan, 1), ed = new Date(tahun, bulan + 1, 0); ed.setHours(23, 59, 59, 999);
+            let target = (namaKomponen || '').trim().toLowerCase();
+            if (!target) return 0;
+            return dataPengeluaran.filter(p => {
+                if (isKasbon(p) || p.tipe === 'pemasukan') return false;
+                let d = new Date(p.tanggal);
+                if (d < sd || d > ed) return false;
+                let itemNama = (p.item || '').trim().toLowerCase();
+                return itemNama && (itemNama.includes(target) || target.includes(itemNama));
+            }).reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+        }
+
+        // Breaks the money that should physically sit in the bank account into the parts that
+        // explain it, relative to the active period P (Beranda filter):
+        //
+        //   Uang di rekening = Kas (Total Kas Saat Ini, all time — incl. kas portion of advance payments)
+        //                    + Iuran rutin belum dibayarkan s.d. P (Sampah/BPJS/Keamanan collected
+        //                      from lunas kavling but not yet checked off as paid out)
+        //                    + Bayar di muka setelah P (routine portion of IPL paid for future months)
+        //                    + Selisih pembayaran (actual payment nominal vs standard tagihan, if any)
+        //
+        // This equals: all IPL payments + pemasukan lain − routine pengeluaran − non-routine
+        // pengeluaran − unpaid kasbon, so it reconciles with the transaction records. "Uang Kas"
+        // style bookkeeping entries (matching the Kas komponen) are treated as non-cash, the same
+        // way hitungKasAllTime() already treats them.
+        //
+        // Also returns what is NOT in the bank yet (kavling arrears up to P, routine items not
+        // checked off yet, unpaid kasbon) for the "Belum masuk / perlu dicek" section.
+        function hitungRincianSaldo(bulanP, tahunP) {
+            let P = tahunP * 12 + bulanP;
+            let setBayar = dataWarga.map(w => getBulanTerbayar(w.id));
+
+            let lunasPerBulan = new Map();
+            setBayar.forEach(set => set.forEach(k => {
+                let [t, b] = k.split('-').map(Number);
+                let key = t * 12 + b;
+                lunasPerBulan.set(key, (lunasPerBulan.get(key) || 0) + 1);
+            }));
+
+            let bulanRutinOut = new Set();
+            dataPengeluaran.forEach(p => {
+                if (isKasbon(p) || p.tipe === 'pemasukan' || !isPengeluaranGajiSampah(p.item)) return;
+                let d = new Date(p.tanggal);
+                bulanRutinOut.add(d.getFullYear() * 12 + d.getMonth());
+            });
+            let semuaBulan = new Set([...lunasPerBulan.keys(), ...bulanRutinOut]);
+
+            let buatBucket = () => ({ total: 0, komponen: new Map() });
+            let ditahan = { sekarang: buatBucket(), dimuka: buatBucket() };
+            let tagihanTercatat = 0, kasDimuka = 0;
+            let pinjamanPerBulan = [];
+
+            [...semuaBulan].sort((a, b) => a - b).forEach(key => {
+                let b = key % 12, t = Math.floor(key / 12);
+                let lunas = lunasPerBulan.get(key) || 0;
+                tagihanTercatat += lunas * getTagihanPerBulan(b, t);
+                if (key > P) kasDimuka += lunas * getKasPerBulan(b, t);
+
+                let pinjam = hitungPinjamanKasRutinBulan(b, t);
+                if (pinjam > 0) pinjamanPerBulan.push({ key, nominal: pinjam });
+
+                let sisa = lunas * getPengeluaranRutinPerBulan(b, t) - hitungPengeluaranRutinBulan(b, t);
+                if (sisa <= 0) return;
+                let bucket = key > P ? ditahan.dimuka : ditahan.sekarang;
+                bucket.total += sisa;
+                let terurai = 0;
+                getPengeluaranRutinAktif(b, t).forEach(k => {
+                    let v = lunas * (parseInt(k.nominal) || 0) - jumlahTransaksiKomponen(k.nama, b, t);
+                    if (!v) return;
+                    bucket.komponen.set(k.nama, (bucket.komponen.get(k.nama) || 0) + v);
+                    terurai += v;
+                });
+                if (sisa !== terurai) bucket.komponen.set('Lainnya', (bucket.komponen.get('Lainnya') || 0) + sisa - terurai);
+            });
+
+            // Kavling that paid ahead of P
+            let kavlingDimuka = [];
+            dataWarga.forEach((w, idx) => {
+                let maxKey = -1, jumlah = 0;
+                setBayar[idx].forEach(k => {
+                    let [t, b] = k.split('-').map(Number);
+                    let key = t * 12 + b;
+                    if (key > P) { jumlah++; if (key > maxKey) maxKey = key; }
+                });
+                if (jumlah) kavlingDimuka.push({ id: w.id, jumlah, sampai: maxKey });
+            });
+
+            // Kas composition
+            let kasDariIuran = hitungTotalKasDariIuran();
+            let terbaru = (a, b) => new Date(b.tanggal) - new Date(a.tanggal);
+            let pemasukanLainList = dataPengeluaran.filter(p => p.tipe === 'pemasukan').sort(terbaru);
+            let pemasukanLain = pemasukanLainList.reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            // Same filter hitungPengeluaranNonRutin() uses, minus kasbon (shown separately)
+            let nonRutinList = dataPengeluaran.filter(p => !isKasbon(p) && p.tipe !== 'pemasukan' && !isPengeluaranRutin(p.item)).sort(terbaru);
+            let bulanKavlingLunas = [...lunasPerBulan.values()].reduce((a, c) => a + c, 0);
+            let kasbonBelumLunas = dataPengeluaran.filter(p => isKasbon(p) && getKasbonStatus(p) !== 'lunas');
+            let totalKasbon = kasbonBelumLunas.reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            let nonRutin = hitungPengeluaranNonRutin() - totalKasbon;
+            let pinjaman = pinjamanPerBulan.reduce((a, c) => a + c.nominal, 0);
+            let kas = hitungKasAllTime();
+
+            let totalBayarTercatat = riwayatPemasukan.reduce((a, c) => a + (parseInt(c.nominal) || 0), 0);
+            let selisih = totalBayarTercatat - tagihanTercatat;
+            let saldoRekening = kas + ditahan.sekarang.total + ditahan.dimuka.total + selisih;
+
+            // Arrears: every unpaid month per kavling from the first billed month in the data
+            // (capped to the last 24 months, same window as the Warga tab) up to P.
+            let kunciBayar = [];
+            riwayatPemasukan.forEach(p => expandBulanRange(p.bulanMulai, p.tahunMulai, p.bulanAkhir, p.tahunAkhir).forEach(m => kunciBayar.push(m.tahun * 12 + m.bulan)));
+            let mulaiTagih = kunciBayar.length ? Math.max(Math.min(...kunciBayar), P - 23) : P;
+            let belumBayar = [];
+            dataWarga.forEach((w, idx) => {
+                if (!isWargaAktif(w)) return; // kavling kosong tidak ditagih
+                let bulan = [];
+                for (let k = mulaiTagih; k <= P; k++) {
+                    if (!setBayar[idx].has(Math.floor(k / 12) + '-' + (k % 12))) bulan.push(k);
+                }
+                if (!bulan.length) return;
+                belumBayar.push({
+                    idx, id: w.id, nama: w.nama, bulan,
+                    tagihan: bulan.reduce((a, k) => a + getTagihanPerBulan(k % 12, Math.floor(k / 12)), 0),
+                    kas: bulan.reduce((a, k) => a + getKasPerBulan(k % 12, Math.floor(k / 12)), 0)
+                });
+            });
+            belumBayar.sort((a, b) => b.bulan.length - a.bulan.length || (parseInt(a.id.replace(/\D/g, '')) || 0) - (parseInt(b.id.replace(/\D/g, '')) || 0));
+
+            // Routine items not checked off yet, from the first month the checklist was ever used
+            // (so months before the app tracked routine payouts aren't flagged) up to P.
+            let mulaiCeklis = bulanRutinOut.size ? Math.max(Math.min(...bulanRutinOut), P - 11) : P;
+            let rutinBelumCeklis = [];
+            for (let k = mulaiCeklis; k <= P; k++) {
+                let b = k % 12, t = Math.floor(k / 12);
+                getPengeluaranRutinAktif(b, t).forEach(kmp => {
+                    if (!cariTransaksiRutin(kmp.nama, b, t)) {
+                        rutinBelumCeklis.push({ key: k, nama: kmp.nama, nominal: (parseInt(kmp.nominal) || 0) * getWargaAktif().length });
+                    }
+                });
+            }
+
+            return {
+                P, kas, kasDimuka, kasDariIuran, bulanKavlingLunas, pemasukanLain, pemasukanLainList, nonRutin, nonRutinList, totalKasbon, kasbonBelumLunas,
+                pinjaman, pinjamanPerBulan, ditahan, kavlingDimuka, selisih, saldoRekening,
+                belumBayar, rutinBelumCeklis
+            };
+        }
+
+        function bukaRincianSaldo() {
+            let bulan = parseInt(document.getElementById('filterBulan').value);
+            let tahun = parseInt(document.getElementById('filterTahun').value);
+            renderRincianSaldo(hitungRincianSaldo(bulan, tahun));
+            modalRincianSaldo.show();
+        }
+
+        function toggleInfoTip(btn, tipId) {
+            let tip = document.getElementById(tipId);
+            if (!tip) return;
+            let buka = !tip.classList.contains('show');
+            tip.classList.toggle('show', buka);
+            btn.setAttribute('aria-expanded', buka);
+        }
+
+        function renderRincianSaldo(r) {
+            let P = r.P;
+            let labelP = labelBulanKey(P);
+            document.getElementById('rincianSaldoPeriode').innerText = `Periode berjalan: ${labelP}`;
+
+            let tipLines = (pairs, total) => pairs.map(([l, v]) => `<div class="tip-line"><span>${escapeHtml(l)}</span><span>${formatRp(v)}</span></div>`).join('')
+                + (total != null ? `<div class="tip-line total"><span>Total</span><span>${formatRp(total)}</span></div>` : '');
+
+            let row = ({ id, warna, judul, sub, nominal, tip, warn }) => {
+                let isi = `${warna ? `<span class="rs-dot" style="background:${warna};"></span>` : ''}
+                    <span class="rs-row-text"><span class="rs-row-title">${judul}</span>${sub ? `<span class="rs-row-sub">${sub}</span>` : ''}</span>
+                    <span class="rs-row-amount">${formatRp(nominal)}</span>`;
+                if (!tip) return `<div class="rs-row${warn ? ' is-warn' : ''}">${isi}</div>`;
+                return `<button type="button" class="rs-row${warn ? ' is-warn' : ''}" aria-expanded="false" aria-controls="${id}" onclick="toggleInfoTip(this, '${id}')">${isi}<i class="fas fa-circle-info rs-info"></i></button>
+                    <div class="info-tip" id="${id}">${tip}</div>`;
+            };
+
+            // --- Komposisi uang di rekening ---
+            let bagian = [
+                { warna: 'var(--primary)', nominal: r.kas },
+                { warna: 'var(--warning)', nominal: r.ditahan.sekarang.total },
+                { warna: 'var(--ink)', nominal: r.ditahan.dimuka.total },
+                { warna: '#B8C4C2', nominal: r.selisih }
+            ];
+            let totalPositif = bagian.reduce((a, b) => a + Math.max(0, b.nominal), 0) || 1;
+            let bar = bagian.filter(b => b.nominal > 0).map(b => `<span style="width:${(b.nominal / totalPositif) * 100}%; background:${b.warna};"></span>`).join('');
+
+            let kasTip = tipLines([
+                ['Kas dari IPL lunas', r.kasDariIuran],
+                ['Pemasukan lain', r.pemasukanLain],
+                ['Pengeluaran tambahan', -r.nonRutin],
+                ['Kasbon belum lunas', -r.totalKasbon],
+                ['Pinjam kas untuk gaji', -r.pinjaman]
+            ], r.kas) + (r.kasDimuka ? `<div class="tip-note">Termasuk ${formatRp(r.kasDimuka)} porsi Kas dari pembayaran di muka.</div>` : '');
+
+            // A negative component means it was already paid out in full while not every kavling
+            // had paid yet (covered by the other components' money) — label it so it reads clearly.
+            let komponenTip = (bucket) => tipLines([...bucket.komponen.entries()].map(([nama, v]) => [v < 0 ? `${nama} (sudah dibayar penuh)` : nama, v]), bucket.total);
+
+            let dimukaSub = r.kavlingDimuka.length
+                ? `${r.kavlingDimuka.length} kavling sudah bayar untuk ${labelBulanKey(P + 1, true)} dan seterusnya`
+                : `Belum ada kavling yang bayar untuk ${labelBulanKey(P + 1, true)} dan seterusnya`;
+            let dimukaTip = r.ditahan.dimuka.total
+                ? komponenTip(r.ditahan.dimuka)
+                  + `<div class="tip-note">${r.kavlingDimuka.map(k => `${escapeHtml(k.id)} lunas s.d. ${labelBulanKey(k.sampai, true)} (${k.jumlah} bln)`).join(' &bull; ')}</div>`
+                  + '<div class="tip-note">Uang ini disimpan untuk gaji, sampah & BPJS bulan-bulan tersebut. Porsi kas-nya sudah masuk ke Kas.</div>'
+                : null;
+
+            // Tooltip listing individual transactions: starts at the active period and goes back
+            // in time (max 8), grouped under month headings. Everything not shown (older entries
+            // beyond the first 8, plus any dated after the active period) is summarised with the
+            // month range it covers.
+            let tipTransaksi = (list, judul) => {
+                if (!list.length) return null;
+                let kunci = p => { let d = new Date(p.tanggal); return d.getFullYear() * 12 + d.getMonth(); };
+                let urut = [...list].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal) || (b.id || 0) - (a.id || 0));
+                let tampil = urut.filter(p => kunci(p) <= P).slice(0, 8);
+                let sisa = urut.filter(p => !tampil.includes(p));
+
+                let isi = '', bulanSebelum = null;
+                tampil.forEach(p => {
+                    let k = kunci(p);
+                    if (k !== bulanSebelum) { isi += `<div class="tip-month">${labelBulanKey(k)}</div>`; bulanSebelum = k; }
+                    let tgl = new Date(p.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                    isi += `<div class="tip-line"><span>${escapeHtml(p.item)} · ${tgl}</span><span>${formatRp(parseInt(p.nominal) || 0)}</span></div>`;
+                });
+                if (!tampil.length) isi += `<div class="tip-note">Belum ada transaksi s.d. ${labelBulanKey(P)}.</div>`;
+
+                if (sisa.length) {
+                    let ks = sisa.map(kunci), awal = Math.min(...ks), akhir = Math.max(...ks);
+                    let rentang = awal === akhir ? labelBulanKey(awal) : `${labelBulanKey(awal)} – ${labelBulanKey(akhir)}`;
+                    isi += `<div class="tip-note">Ada ${sisa.length} transaksi lainnya di bulan lain, periode ${rentang}.</div>`;
+                }
+                return (judul ? `<strong class="d-block mb-1">${judul}</strong>` : '') + isi;
+            };
+
+            let html = `<div class="rs-hero">
+                    <div class="rs-eyebrow">Uang di rekening (dihitung dari catatan)</div>
+                    <div class="rs-total">${formatRp(r.saldoRekening)}</div>
+                    <div class="rs-bar">${bar}</div>
+                </div>
+                <div class="rs-list">
+                    ${row({ id: 'tipKas', warna: 'var(--primary)', judul: 'Kas', sub: 'Total Kas Saat Ini', nominal: r.kas, tip: kasTip })}
+                    ${row({ id: 'tipRutin', warna: 'var(--warning)', judul: 'Pengeluaran gaji, sampah & BPJS', sub: `Dana sudah terkumpul, belum dibayarkan s.d. ${labelBulanKey(P, true)}`, nominal: r.ditahan.sekarang.total, tip: r.ditahan.sekarang.total ? komponenTip(r.ditahan.sekarang) + '<div class="tip-note">Akan keluar dari rekening saat dibayarkan & diceklis di Transaksi.</div>' : null })}
+                    ${row({ id: 'tipDimuka', warna: 'var(--ink)', judul: 'IPL lunas sekaligus (bulan ke depan)', sub: dimukaSub, nominal: r.ditahan.dimuka.total, tip: dimukaTip })}
+                    ${r.selisih ? row({ id: 'tipSelisih', warna: '#B8C4C2', judul: 'Selisih pembayaran', sub: 'Nominal dibayar beda dengan tagihan standar', nominal: r.selisih, tip: null }) : ''}
+                </div>`;
+
+            // --- Asal Total Kas ---
+            let calcLine = ({ id, judul, sub, nominal, tanda, tip }) => {
+                let amt = `<span class="${tanda > 0 ? 'plus' : 'minus'}">${tanda > 0 ? '+' : '−'}${formatRp(nominal)}</span>`;
+                let label = `<span>${judul}${sub ? `<span class="sub">${sub}</span>` : ''}</span>`;
+                if (!tip) return `<div class="rs-calc-line">${label}<span class="rs-calc-amt">${amt}</span></div>`;
+                return `<button type="button" class="rs-calc-line" aria-expanded="false" aria-controls="${id}" onclick="toggleInfoTip(this, '${id}')">${label}<span class="rs-calc-amt">${amt}<i class="fas fa-circle-info rs-info"></i></span></button>
+                    <div class="info-tip" id="${id}">${tip}</div>`;
+            };
+
+            let tipKasIpl = `Bagian <b>Kas</b> dari setiap IPL yang sudah lunas (contoh: ${formatRp(getKasPerBulan(P % 12, Math.floor(P / 12)))} per kavling per bulan).`
+                + `<div class="tip-note">${r.bulanKavlingLunas} pembayaran bulanan lunas tercatat, termasuk yang bayar di muka.</div>`;
+            let tipPemasukanLain = (tipTransaksi(r.pemasukanLainList, 'Sumber: Transaksi &gt; Pemasukan') || '')
+                + '<div class="tip-note">Uang masuk selain IPL, misalnya donasi, sewa fasilitas, atau sisa dana kegiatan.</div>';
+            let tipNonRutin = (tipTransaksi(r.nonRutinList, 'Sumber: Transaksi &gt; Pengeluaran') || '')
+                + '<div class="tip-note">Biaya di luar gaji, sampah & BPJS yang diambil dari kas, misalnya bantuan warga sakit, santunan duka, perbaikan & kebutuhan lingkungan, atau acara warga.</div>';
+            let tipKasbonCalc = r.kasbonBelumLunas.length
+                ? tipLines(r.kasbonBelumLunas.map(p => {
+                      let d = new Date(p.tanggal);
+                      return [`${getKasbonNama(p)} · dicatat ${formatTgl(p.tanggal)} (periode ${bulanNames[d.getMonth()]} ${d.getFullYear()})`, parseInt(p.nominal) || 0];
+                  }), r.totalKasbon) + '<div class="tip-note">Uang kas yang dipinjam dan belum dikembalikan. Tandai lunas di Transaksi saat sudah kembali.</div>'
+                : null;
+            let tipPinjaman = r.pinjamanPerBulan.length
+                ? '<strong class="d-block mb-1" style="color: var(--warning);">Kas dipinjam karena belum semua kavling lunas IPL</strong>'
+                  + tipLines(r.pinjamanPerBulan.map(p => [labelBulanKey(p.key), p.nominal]), r.pinjaman)
+                  + '<div class="tip-note">Gaji, sampah & BPJS dibayar penuh tiap bulan, sementara iuran dari kavling yang belum bayar belum masuk. Kekurangannya ditalangi dari kas dan kembali saat kavling tersebut melunasi IPL.</div>'
+                : null;
+
+            html += `<div class="rs-section">Asal Total Kas</div>
+                <div class="rs-calc">
+                    ${calcLine({ id: 'tipCalcIpl', judul: 'Kas dari IPL lunas', sub: 'Bagian kas dari IPL yang sudah dibayar', nominal: r.kasDariIuran, tanda: 1, tip: tipKasIpl })}
+                    ${calcLine({ id: 'tipCalcMasuk', judul: 'Pemasukan lain', sub: r.pemasukanLainList.length ? `${r.pemasukanLainList.length} transaksi di luar IPL` : 'Belum ada', nominal: r.pemasukanLain, tanda: 1, tip: tipPemasukanLain })}
+                    ${calcLine({ id: 'tipCalcTambahan', judul: 'Pengeluaran tambahan', sub: 'Sakit, duka, kebutuhan lingkungan, dll.', nominal: r.nonRutin, tanda: -1, tip: tipNonRutin })}
+                    ${calcLine({ id: 'tipCalcKasbon', judul: 'Kasbon belum lunas', sub: r.kasbonBelumLunas.length ? `${r.kasbonBelumLunas.length} kasbon belum dikembalikan` : 'Tidak ada', nominal: r.totalKasbon, tanda: -1, tip: tipKasbonCalc })}
+                    ${calcLine({ id: 'tipCalcPinjam', judul: 'Pinjam kas untuk gaji', sub: r.pinjamanPerBulan.length ? `Ditalangi selama ${r.pinjamanPerBulan.length} bulan` : 'Tidak ada', nominal: r.pinjaman, tanda: -1, tip: tipPinjaman })}
+                    <div class="rs-calc-line total"><span>Total Kas Saat Ini</span><span>${formatRp(r.kas)}</span></div>
+                </div>`;
+
+            // --- Belum masuk / perlu dicek ---
+            let kasBelumMasuk = r.belumBayar.reduce((a, w) => a + w.kas, 0);
+            let tagihanBelumMasuk = r.belumBayar.reduce((a, w) => a + w.tagihan, 0);
+            let tipBelumBayar = r.belumBayar.length
+                ? r.belumBayar.map(w => `<div class="tip-line"><span>${escapeHtml(w.id)} &middot; ${w.bulan.length} bln</span><span>${formatRp(w.kas)}</span></div>`).join('')
+                  + `<div class="tip-note">Total IPL belum dibayar (semua komponen): ${formatRp(tagihanBelumMasuk)}</div>`
+                : null;
+            let totalRutinBelum = r.rutinBelumCeklis.reduce((a, x) => a + x.nominal, 0);
+            let tipRutinBelum = r.rutinBelumCeklis.length
+                ? tipLines(r.rutinBelumCeklis.map(x => [`${x.nama} · ${labelBulanKey(x.key, true)}`, x.nominal]), totalRutinBelum)
+                  + '<div class="tip-note">Setelah dibayarkan, ceklis di Transaksi &gt; Pengeluaran supaya saldo ikut berkurang.</div>'
+                : null;
+            let tipKasbon = r.kasbonBelumLunas.length
+                ? tipLines(r.kasbonBelumLunas.map(p => [`${getKasbonNama(p)} · ${formatTgl(p.tanggal)}`, parseInt(p.nominal) || 0]), r.totalKasbon)
+                : null;
+
+            html += `<div class="rs-section">Belum masuk / perlu dicek</div>
+                <div class="rs-list">
+                    ${row({ id: 'tipBelumBayar', judul: 'Kas yang belum masuk', sub: r.belumBayar.length ? `${r.belumBayar.length} kavling belum bayar IPL s.d. ${labelBulanKey(P, true)}` : 'Semua kavling sudah lunas', nominal: kasBelumMasuk, tip: tipBelumBayar, warn: r.belumBayar.length > 0 })}
+                    ${row({ id: 'tipRutinBelum', judul: 'Gaji, sampah & BPJS belum dibayar', sub: r.rutinBelumCeklis.length ? `${r.rutinBelumCeklis.length} tagihan rutin belum diceklis` : 'Semua sudah dibayar & diceklis', nominal: totalRutinBelum, tip: tipRutinBelum, warn: r.rutinBelumCeklis.length > 0 })}
+                    ${row({ id: 'tipKasbon', judul: 'Kasbon belum kembali', sub: r.kasbonBelumLunas.length ? `${r.kasbonBelumLunas.length} kasbon, uangnya sudah keluar dari rekening` : 'Tidak ada kasbon', nominal: r.totalKasbon, tip: tipKasbon, warn: r.kasbonBelumLunas.length > 0 })}
+                </div>
+                <p class="rs-note">Uang di rekening dihitung dari semua pembayaran IPL + pemasukan lain, dikurangi pengeluaran dan kasbon yang tercatat. Cocokkan dengan mutasi rekening; jika berbeda, ada transaksi yang belum dicatat.</p>`;
+
+            document.getElementById('rincianSaldoBody').innerHTML = html;
+        }
+
+        // Beranda "Belum Bayar IPL": compact card with one chip per kavling that still has
+        // unpaid months up to the active period; tap a chip to open that warga's payment calendar.
+        function renderTunggakanBeranda(r) {
+            let card = document.getElementById('tunggakanCard');
+            if (!card) return;
+            let labelP = labelBulanKey(r.P);
+            let list = r.belumBayar;
+            let chips = document.getElementById('tunggakanChips');
+            let toggle = document.getElementById('tunggakanToggle');
+            let detail = document.getElementById('tunggakanDetail');
+
+            card.classList.toggle('is-clear', list.length === 0);
+            if (!list.length) {
+                document.getElementById('tunggakanTitle').innerHTML = '<i class="fas fa-circle-check"></i>Semua kavling lunas';
+                document.getElementById('tunggakanSub').innerText = `Tidak ada tunggakan IPL s.d. ${labelP}`;
+                document.getElementById('tunggakanPill').classList.add('d-none');
+                chips.innerHTML = ''; chips.classList.add('d-none');
+                toggle.classList.add('d-none');
+                detail.hidden = true; detail.innerHTML = '';
+                return;
+            }
+
+            let totalTagihan = list.reduce((a, w) => a + w.tagihan, 0);
+            document.getElementById('tunggakanTitle').innerHTML = '<i class="fas fa-circle-exclamation"></i>Belum Bayar IPL';
+            document.getElementById('tunggakanSub').innerText = `s.d. ${labelP} · ${formatRp(totalTagihan)}`;
+            let pill = document.getElementById('tunggakanPill');
+            pill.classList.remove('d-none');
+            pill.innerText = `${list.length}/${getWargaAktif().length} kavling`;
+
+            chips.classList.remove('d-none');
+            let chipHtml = list.map(w => `<button type="button" class="tg-chip${w.bulan.length > 1 ? ' is-late' : ''}" onclick="bukaDetailWarga(${w.idx})" title="${escapeHtml(w.nama)}"><b>${escapeHtml(w.id)}</b>${w.bulan.length} bln</button>`).join('');
+            chips.innerHTML = `<div class="tg-track"><div class="tg-group">${chipHtml}</div></div>`;
+            aturMarqueeTunggakan();
+
+            toggle.classList.remove('d-none');
+            detail.innerHTML = list.map(w => {
+                let bulanTeks = w.bulan.length > 3
+                    ? `${labelBulanKey(w.bulan[0], true)} – ${labelBulanKey(w.bulan[w.bulan.length - 1], true)} (${w.bulan.length} bln)`
+                    : w.bulan.map(k => labelBulanKey(k, true)).join(', ');
+                return `<div class="tg-row" role="button" tabindex="0" onclick="bukaDetailWarga(${w.idx})" onkeydown="if(event.key==='Enter')bukaDetailWarga(${w.idx})">
+                    <div class="tg-row-main"><b>${escapeHtml(w.id)}</b> <span>${escapeHtml(w.nama)} · ${bulanTeks}</span></div>
+                    <div class="tg-row-amount">${formatRp(w.tagihan)}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Marquee for the chip row, only when the chips overflow the row. The row stays a
+        // normal horizontal scroller (overflow-x: auto) and a requestAnimationFrame loop slowly
+        // advances scrollLeft, so the user can still swipe/drag/wheel it by hand at any time.
+        // The chip group is duplicated (hidden from screen readers / tab order); once the scroll
+        // position passes one full group it jumps back by exactly that width, which looks
+        // seamless. Manual scrolling pauses the auto-scroll for a moment, as does hover/focus.
+        // Users with prefers-reduced-motion get the plain scroller without auto movement.
+        const TG_KECEPATAN = 30;            // px per second
+        const TG_JEDA_SETELAH_SENTUH = 2500; // ms of stillness after the user scrolls/touches
+        let tgMarquee = { aktif: false, pos: 0, lebar: 0, jedaSampai: 0, disentuh: false, hover: false, raf: 0, tLalu: 0, siap: false };
+
+        function aturMarqueeTunggakan() {
+            let chips = document.getElementById('tunggakanChips');
+            let track = chips && chips.querySelector('.tg-track');
+            if (!track) return;
+            siapkanMarqueeTunggakan(chips);
+
+            let groups = track.querySelectorAll('.tg-group');
+            let asli = groups[0];
+            if (chips.clientWidth === 0) return; // tab hidden — the ResizeObserver re-runs this once visible
+            let kurangiGerak = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            let perluMarquee = !kurangiGerak && asli.offsetWidth > chips.clientWidth + 1;
+
+            if (perluMarquee && groups.length === 1) {
+                let salinan = asli.cloneNode(true);
+                salinan.setAttribute('aria-hidden', 'true');
+                salinan.querySelectorAll('button').forEach(b => b.tabIndex = -1);
+                track.appendChild(salinan);
+            } else if (!perluMarquee && groups.length > 1) {
+                groups[1].remove();
+            }
+            chips.classList.toggle('is-marquee', perluMarquee);
+
+            tgMarquee.lebar = asli.offsetWidth; // one full group incl. its trailing gap
+            tgMarquee.aktif = perluMarquee;
+            if (tgMarquee.pos >= tgMarquee.lebar) tgMarquee.pos = 0;
+            if (perluMarquee && !tgMarquee.raf) {
+                tgMarquee.tLalu = 0;
+                tgMarquee.raf = requestAnimationFrame(langkahMarqueeTunggakan);
+            }
+        }
+
+        function langkahMarqueeTunggakan(t) {
+            let chips = document.getElementById('tunggakanChips');
+            if (!tgMarquee.aktif || !chips) { tgMarquee.raf = 0; return; }
+            let dt = tgMarquee.tLalu ? Math.min(t - tgMarquee.tLalu, 100) : 0;
+            tgMarquee.tLalu = t;
+
+            let berhenti = tgMarquee.disentuh || tgMarquee.hover || t < tgMarquee.jedaSampai || chips.clientWidth === 0
+                || chips.contains(document.activeElement);
+            if (!berhenti && dt) {
+                // Pick up wherever the user left it (they may have scrolled by hand)
+                if (Math.abs(chips.scrollLeft - tgMarquee.pos) > 2) tgMarquee.pos = chips.scrollLeft;
+                tgMarquee.pos += TG_KECEPATAN * dt / 1000;
+                if (tgMarquee.pos >= tgMarquee.lebar) tgMarquee.pos -= tgMarquee.lebar;
+                chips.scrollLeft = tgMarquee.pos;
+            }
+            tgMarquee.raf = requestAnimationFrame(langkahMarqueeTunggakan);
+        }
+
+        // One-time listeners on the chip row (it is never replaced, only its contents are)
+        function siapkanMarqueeTunggakan(chips) {
+            if (tgMarquee.siap) return;
+            tgMarquee.siap = true;
+            if (window.ResizeObserver) new ResizeObserver(() => aturMarqueeTunggakan()).observe(chips);
+            let jedaSebentar = () => { tgMarquee.jedaSampai = performance.now() + TG_JEDA_SETELAH_SENTUH; };
+
+            chips.addEventListener('touchstart', () => { tgMarquee.disentuh = true; }, { passive: true });
+            let lepas = () => { tgMarquee.disentuh = false; jedaSebentar(); };
+            chips.addEventListener('touchend', lepas, { passive: true });
+            chips.addEventListener('touchcancel', lepas, { passive: true });
+            chips.addEventListener('wheel', jedaSebentar, { passive: true });
+            chips.addEventListener('mouseenter', () => { tgMarquee.hover = true; });
+            chips.addEventListener('mouseleave', () => { tgMarquee.hover = false; });
+
+            // Keep the loop seamless while the user scrolls by hand too: past one full group
+            // jump back by a group; before the start, jump forward by a group (so they can
+            // swipe right as well). Not while a finger is down, to avoid fighting the gesture.
+            chips.addEventListener('scroll', () => {
+                if (!tgMarquee.aktif || tgMarquee.disentuh || !tgMarquee.lebar) return;
+                if (chips.scrollLeft >= tgMarquee.lebar) chips.scrollLeft -= tgMarquee.lebar;
+                else if (chips.scrollLeft <= 0 && performance.now() < tgMarquee.jedaSampai) chips.scrollLeft += tgMarquee.lebar;
+            }, { passive: true });
+        }
+
+        function toggleTunggakanDetail() {
+            let detail = document.getElementById('tunggakanDetail');
+            let toggle = document.getElementById('tunggakanToggle');
+            detail.hidden = !detail.hidden;
+            toggle.setAttribute('aria-expanded', !detail.hidden);
+            toggle.innerHTML = `${detail.hidden ? 'Lihat rincian' : 'Sembunyikan'} <i class="fas fa-chevron-down fa-xs"></i>`;
+        }
 
         // Swipe left/right on the Total Saldo card to move one slide at a time
         // Wires swipe-left/right-to-change-slide on one swipe-area element
@@ -3112,7 +3854,7 @@
         // WhatsApp opens with the text, so the image can be pasted/attached manually.
         async function shareWA() {
             let text = buatTeksWA();
-            let { canvas, namaFile } = await buatCanvasLaporan();
+            let { canvas, namaFile } = await buatCanvasLaporan({ ringkas: true });
             let blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
             let file = blob ? new File([blob], namaFile, { type: 'image/png' }) : null;
 
@@ -3161,8 +3903,8 @@
             let totalPengeluaranAllTime = formatRp(totalAllTime.pengeluaran);
 
             // Kavling lunas untuk bulan aktif — sama seperti Progres Iuran di Beranda
-            let jumlahLunas = dataWarga.filter(w => isLunasBulan(w.id, parseInt(bulan), parseInt(tahun))).length;
-            let totalKavling = dataWarga.length;
+            let jumlahLunas = getWargaAktif().filter(w => isLunasBulan(w.id, parseInt(bulan), parseInt(tahun))).length;
+            let totalKavling = getWargaAktif().length;
 
             // Agenda dalam 2 bulan ke depan dari hari ini, sampai D-day
             let today = new Date(); today.setHours(0, 0, 0, 0);
@@ -3236,11 +3978,16 @@
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
 
-        // Renders the "Gambar (PNG)" report for the active Beranda period onto a canvas.
-        // Shared by downloadImage() and shareWA() so both always produce the same picture.
-        // Resolves to { canvas, namaFile }.
-        function buatCanvasLaporan() {
+        // Renders the report for the active Beranda period onto a canvas. Resolves to
+        // { canvas, namaFile }.
+        //  - downloadImage(): full monthly history (default).
+        //  - shareWA() passes { ringkas: true }: monthly table limited to the last 5 months up
+        //    to the active month, followed by "Kavling Belum Lunas IPL" (arrears up to the month
+        //    BEFORE the active one) and "Pengeluaran <bulan aktif>" (rutin / tambahan / kasbon).
+        function buatCanvasLaporan(opsi = {}) {
+            let ringkas = !!opsi.ringkas;
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
+            let P = tahun * 12 + bulan;
 
             let totalAllTime = hitungTotalAllTimeDariBreakdown();
             let totalMasuk = formatRp(totalAllTime.pemasukan);
@@ -3252,6 +3999,44 @@
             let bulanKas = document.getElementById('period-kasbulanini').innerText;
 
             let baris = getRingkasanBulanan();
+            // WhatsApp version is anchored on the REAL current month (today), not the filter:
+            // 6 months back up to now, extended forward to the last month any kavling has
+            // already paid IPL for (advance payments). Without advance payments it ends at now.
+            let hariIni = new Date();
+            let Pkini = hariIni.getFullYear() * 12 + hariIni.getMonth();
+            let labelKini = labelBulanKey(Pkini);
+            if (ringkas) {
+                let maksBayar = Pkini;
+                riwayatPemasukan.forEach(p => { let k = p.tahunAkhir * 12 + p.bulanAkhir; if (k > maksBayar) maksBayar = k; });
+                baris = baris.filter(r => { let k = r.tahun * 12 + r.bulan; return k >= Pkini - 5 && k <= maksBayar; });
+            }
+            let judulTabelBulanan = baris.length
+                ? `Data Bulanan (${bulanNames[baris[0].bulan].slice(0, 3)} ${baris[0].tahun} – ${bulanNames[baris[baris.length - 1].bulan].slice(0, 3)} ${baris[baris.length - 1].tahun})`
+                : "Data Bulanan";
+
+            // Extra sections for the WhatsApp version
+            let labelP = `${bulanNames[bulan]} ${tahun}`;
+            let tunggakan = ringkas ? hitungRincianSaldo(Pkini % 12, Math.floor(Pkini / 12)).belumBayar : [];
+            // Kavling that already paid IPL for months AFTER the active month (section omitted if none)
+            let lunasDimuka = [];
+            if (ringkas) {
+                dataWarga.forEach(w => {
+                    let bulanDimuka = [...getBulanTerbayar(w.id)]
+                        .map(k => { let [t, b] = k.split('-').map(Number); return t * 12 + b; })
+                        .filter(k => k > Pkini).sort((a, b) => a - b);
+                    if (!bulanDimuka.length) return;
+                    lunasDimuka.push({
+                        id: w.id, nama: w.nama, bulan: bulanDimuka,
+                        nominal: bulanDimuka.reduce((a, k) => a + getTagihanPerBulan(k % 12, Math.floor(k / 12)), 0)
+                    });
+                });
+            }
+            let sdBulan = new Date(tahun, bulan, 1), edBulan = new Date(tahun, bulan + 1, 0); edBulan.setHours(23, 59, 59, 999);
+            let pengeluaranBulan = ringkas
+                ? dataPengeluaran
+                    .filter(p => p.tipe !== 'pemasukan' && new Date(p.tanggal) >= sdBulan && new Date(p.tanggal) <= edBulan)
+                    .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+                : [];
 
             // Drawn directly onto a <canvas> with the native 2D drawing API — no DOM-to-image
             // conversion library involved. Kept compact (smaller canvas, lower pixel density)
@@ -3272,6 +4057,10 @@
             function desenhar(logo) {
                 let headerH = 46, barH = 24, summaryH = 50, tableHeaderH = 22;
                 let H = headerH + barH + summaryH + barH + summaryH + barH + tableHeaderH + (baris.length * rowH) + 14;
+                // Each extra section: bar + table header + rows (min 1 for the empty message) + total row
+                let tinggiSeksi = n => barH + (n ? tableHeaderH + (n + 1) * rowH : rowH);
+                if (ringkas) H += tinggiSeksi(tunggakan.length) + tinggiSeksi(pengeluaranBulan.length)
+                    + (lunasDimuka.length ? tinggiSeksi(lunasDimuka.length) : 0);
 
                 let SCALE = 1.5; // lower pixel density than before, keeps the PNG file small
                 let canvas = document.createElement('canvas');
@@ -3325,9 +4114,9 @@
                 threeCol(['Total Uang Masuk', 'Total Uang Keluar', 'Total Uang Kas'], [totalMasuk, totalKeluar, totalKas], ['#16A34A', '#DC2626', '#0A0A0A']);
 
                 sectionBar(`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`);
-                threeCol(['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini'], [bulanMasuk, bulanKeluar, bulanKas], ['#16A34A', '#DC2626', '#0A0A0A']);
+                threeCol(['Uang Masuk Bulan Ini', 'Uang Keluar Bulan Ini', 'Uang Kas Bulan Ini'], [bulanMasuk, bulanKeluar, bulanKas], ['#16A34A', '#DC2626', '#0A0A0A']);
 
-                sectionBar('Data Setiap Bulan Tercatat');
+                sectionBar(ringkas ? judulTabelBulanan : 'Data Setiap Bulan Tercatat');
 
                 // Table header
                 let cols = [0, W * 0.28, W * 0.52, W * 0.76, W];
@@ -3360,6 +4149,119 @@
                     y += rowH;
                 });
 
+                if (ringkas) {
+                    // Truncates text with "…" so it fits inside a column
+                    function pas(teks, maxW) {
+                        teks = String(teks);
+                        if (ctx.measureText(teks).width <= maxW) return teks;
+                        while (teks.length > 1 && ctx.measureText(teks + '…').width > maxW) teks = teks.slice(0, -1);
+                        return teks + '…';
+                    }
+                    // Generic table: kolom = [{ judul, x0, x1, align }], data = rows of [{ teks, warna, bold }]
+                    function tabel(kolom, data, total) {
+                        ctx.fillStyle = '#1E3A5F';
+                        ctx.fillRect(0, y, W, tableHeaderH);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 9px Arial';
+                        kolom.forEach(k => {
+                            ctx.textAlign = k.align;
+                            ctx.fillText(k.judul, k.align === 'left' ? k.x0 + 8 : k.align === 'right' ? k.x1 - 8 : (k.x0 + k.x1) / 2, y + tableHeaderH / 2);
+                        });
+                        y += tableHeaderH;
+                        [...data, total].forEach((sel, i) => {
+                            let isTotal = i === data.length;
+                            ctx.fillStyle = isTotal ? '#F3F4F6' : '#ffffff';
+                            ctx.fillRect(0, y, W, rowH);
+                            ctx.strokeStyle = '#E5E7EB';
+                            ctx.strokeRect(0, y, W, rowH);
+                            sel.forEach((c, j) => {
+                                if (!c) return;
+                                let k = kolom[j];
+                                ctx.font = (c.bold || isTotal) ? 'bold 9px Arial' : '9px Arial';
+                                ctx.fillStyle = c.warna || '#0A0A0A';
+                                ctx.textAlign = k.align;
+                                let x = k.align === 'left' ? k.x0 + 8 : k.align === 'right' ? k.x1 - 8 : (k.x0 + k.x1) / 2;
+                                ctx.fillText(pas(c.teks, k.x1 - k.x0 - 12), x, y + rowH / 2);
+                            });
+                            y += rowH;
+                        });
+                    }
+                    function barisKosong(teks) {
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, y, W, rowH);
+                        ctx.strokeStyle = '#E5E7EB'; ctx.strokeRect(0, y, W, rowH);
+                        ctx.fillStyle = '#6B7280'; ctx.font = 'italic 9px Arial'; ctx.textAlign = 'center';
+                        ctx.fillText(teks, W / 2, y + rowH / 2);
+                        y += rowH;
+                    }
+
+                    let teksBulan = list => list.length > 2
+                        ? `${labelBulanKey(list[0], true)} – ${labelBulanKey(list[list.length - 1], true)} (${list.length} bln)`
+                        : list.map(k => labelBulanKey(k, true)).join(', ');
+
+                    // --- Kavling belum lunas IPL s.d. bulan aktif ---
+                    sectionBar(`Kavling Belum Lunas IPL (s.d. ${labelKini})`);
+                    if (!tunggakan.length) {
+                        barisKosong(`Semua kavling sudah lunas IPL s.d. ${labelKini}`);
+                    } else {
+                        let totalTunggakan = tunggakan.reduce((a, w) => a + w.tagihan, 0);
+                        tabel([
+                            { judul: 'Kavling', x0: 0, x1: W * 0.16, align: 'left' },
+                            { judul: 'Nama', x0: W * 0.16, x1: W * 0.44, align: 'left' },
+                            { judul: 'Bulan Belum Bayar', x0: W * 0.44, x1: W * 0.78, align: 'left' },
+                            { judul: 'Tagihan', x0: W * 0.78, x1: W, align: 'right' }
+                        ], tunggakan.map(w => [
+                            { teks: w.id, bold: true },
+                            { teks: w.nama || '-' },
+                            { teks: teksBulan(w.bulan) },
+                            { teks: formatRp(w.tagihan), warna: '#DC2626' }
+                        ]), [{ teks: `${tunggakan.length} kavling` }, null, { teks: 'Total tunggakan' }, { teks: formatRp(totalTunggakan), warna: '#DC2626' }]);
+                    }
+
+                    // --- Kavling lunas di muka (bulan setelah bulan aktif) — only if any ---
+                    if (lunasDimuka.length) {
+                        let berikut = Pkini + 1;
+                        sectionBar(`Kavling Sudah Lunas untuk Bulan ke Depan (${labelBulanKey(berikut)} dst.)`);
+                        let totalDimuka = lunasDimuka.reduce((a, w) => a + w.nominal, 0);
+                        tabel([
+                            { judul: 'Kavling', x0: 0, x1: W * 0.16, align: 'left' },
+                            { judul: 'Nama', x0: W * 0.16, x1: W * 0.44, align: 'left' },
+                            { judul: 'Sudah Lunas Untuk', x0: W * 0.44, x1: W * 0.78, align: 'left' },
+                            { judul: 'Nominal', x0: W * 0.78, x1: W, align: 'right' }
+                        ], lunasDimuka.map(w => [
+                            { teks: w.id, bold: true },
+                            { teks: w.nama || '-' },
+                            { teks: teksBulan(w.bulan) },
+                            { teks: formatRp(w.nominal), warna: '#16A34A' }
+                        ]), [{ teks: `${lunasDimuka.length} kavling` }, null, { teks: 'Total bayar di muka' }, { teks: formatRp(totalDimuka), warna: '#16A34A' }]);
+                    }
+
+                    // --- Pengeluaran bulan aktif (rutin / tambahan / kasbon) ---
+                    sectionBar(`Pengeluaran ${bulanNames[bulan]} ${tahun}`);
+                    if (!pengeluaranBulan.length) {
+                        barisKosong(`Belum ada pengeluaran tercatat di ${bulanNames[bulan]} ${tahun}`);
+                    } else {
+                        // Same rule as "Uang Keluar Bulan Ini" (period-pengeluaran): kasbon is a loan,
+                        // not an expense, so it's listed but not counted in the total — keeps both in sync.
+                        let totalKeluarBulan = pengeluaranBulan.filter(p => !isKasbon(p)).reduce((a, p) => a + (parseInt(p.nominal) || 0), 0);
+                        let adaKasbon = pengeluaranBulan.some(isKasbon);
+                        tabel([
+                            { judul: 'Tanggal', x0: 0, x1: W * 0.18, align: 'left' },
+                            { judul: 'Keterangan', x0: W * 0.18, x1: W * 0.58, align: 'left' },
+                            { judul: 'Jenis', x0: W * 0.58, x1: W * 0.76, align: 'center' },
+                            { judul: 'Nominal', x0: W * 0.76, x1: W, align: 'right' }
+                        ], pengeluaranBulan.map(p => {
+                            let jenis = isKasbon(p) ? 'Kasbon' : isPengeluaranRutin(p.item) ? 'Rutin' : 'Tambahan';
+                            let warnaJenis = jenis === 'Rutin' ? '#0D9488' : jenis === 'Kasbon' ? '#B45309' : '#6B7280';
+                            return [
+                                { teks: new Date(p.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) },
+                                { teks: isKasbon(p) ? getKasbonNama(p) : (p.item || '-') },
+                                { teks: jenis, warna: warnaJenis, bold: true },
+                                { teks: isKasbon(p) ? `(${formatRp(parseInt(p.nominal) || 0)})` : formatRp(parseInt(p.nominal) || 0), warna: isKasbon(p) ? '#B45309' : '#DC2626' }
+                            ];
+                        }), [{ teks: `${pengeluaranBulan.length} transaksi` }, { teks: adaKasbon ? 'Total (tanpa kasbon)' : 'Total pengeluaran' }, null, { teks: formatRp(totalKeluarBulan), warna: '#DC2626' }]);
+                    }
+                }
+
                 return canvas;
             }
         }
@@ -3386,7 +4288,7 @@
                 [formatRp(totalAllTime.pemasukan), formatRp(totalAllTime.pengeluaran), formatRp(totalAllTime.kas)],
                 [],
                 [`Bulan Aktif: ${bulanNames[bulan]} ${tahun}`],
-                ['Uang Tersedia', 'Uang Keluar Bulan ini', 'Uang Kas Saat ini'],
+                ['Uang Masuk Bulan Ini', 'Uang Keluar Bulan Ini', 'Uang Kas Bulan Ini'],
                 [document.getElementById('period-pemasukan').innerText, document.getElementById('period-pengeluaran').innerText, document.getElementById('period-kasbulanini').innerText],
                 [],
                 ['Data Setiap Bulan Tercatat'],
@@ -3403,7 +4305,7 @@
             // --- Sheet 2: Data Warga ---
             let wargaRows = [['No', 'Kavling', 'Nama', `Status ${bulanNames[bulan]} ${tahun}`, 'Jumlah Bulan Lunas (Semua Waktu)', 'Total Dibayar (Semua Waktu)']];
             dataWarga.forEach((w, i) => {
-                let status = isLunasBulan(w.id, bulan, tahun) ? 'Lunas' : 'Belum Lunas';
+                let status = !isWargaAktif(w) ? 'Nonaktif' : isLunasBulan(w.id, bulan, tahun) ? 'Lunas' : 'Belum Lunas';
                 let jumlahBulanLunas = getBulanTerbayar(w.id).size;
                 let target = (w.id || '').toString().trim().toLowerCase();
                 let totalDibayar = riwayatPemasukan
@@ -3484,13 +4386,13 @@
             const SWIPE_THRESHOLD = 55; // px, horizontal distance to count as a swipe
 
             document.addEventListener('touchstart', function(e) {
-                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area')) return;
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area, .no-tab-swipe')) return;
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
             }, { passive: true });
 
             document.addEventListener('touchend', function(e) {
-                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area')) return;
+                if (e.target.closest('.modal, input, select, textarea, .bulan-grid, .dropdown-menu, .saldo-swipe-area, .no-tab-swipe')) return;
                 // Ignore swipes while any modal is open, so users can still swipe inside dialogs normally
                 if (document.querySelector('.modal.show')) return;
 
