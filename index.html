@@ -4110,6 +4110,10 @@
                     .filter(p => p.tipe !== 'pemasukan' && new Date(p.tanggal) >= sdBulan && new Date(p.tanggal) <= edBulan)
                     .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
                 : [];
+            // Routine komponen not checked/paid yet this month (e.g. BPJS): listed as "Disimpan"
+            // with the same amount as its Saldo in Rincian Saldo — money still in the bank, so it
+            // is not counted in the pengeluaran total. Not shown for future months.
+            let rutinDisimpan = ringkas && (tahun * 12 + bulan) <= Pkini ? rincianRutinBulan(bulan, tahun).tertahan : [];
 
             // Drawn directly onto a <canvas> with the native 2D drawing API — no DOM-to-image
             // conversion library involved. Kept compact (smaller canvas, lower pixel density)
@@ -4132,7 +4136,7 @@
                 let H = headerH + barH + summaryH + barH + summaryH + barH + tableHeaderH + (baris.length * rowH) + 14;
                 // Each extra section: bar + table header + rows (min 1 for the empty message) + total row
                 let tinggiSeksi = n => barH + (n ? tableHeaderH + (n + 1) * rowH : rowH);
-                if (ringkas) H += tinggiSeksi(tunggakan.length) + tinggiSeksi(pengeluaranBulan.length)
+                if (ringkas) H += tinggiSeksi(tunggakan.length) + tinggiSeksi(pengeluaranBulan.length + rutinDisimpan.length)
                     + (lunasDimuka.length ? tinggiSeksi(lunasDimuka.length) : 0);
 
                 let SCALE = 1.5; // lower pixel density than before, keeps the PNG file small
@@ -4310,7 +4314,7 @@
 
                     // --- Pengeluaran bulan aktif (rutin / tambahan / kasbon) ---
                     sectionBar(`Pengeluaran ${bulanNames[bulan]} ${tahun}`);
-                    if (!pengeluaranBulan.length) {
+                    if (!pengeluaranBulan.length && !rutinDisimpan.length) {
                         barisKosong(`Belum ada pengeluaran tercatat di ${bulanNames[bulan]} ${tahun}`);
                     } else {
                         // Same rule as "Uang Keluar Bulan Ini" (period-pengeluaran): kasbon is a loan,
@@ -4331,7 +4335,12 @@
                                 { teks: jenis, warna: warnaJenis, bold: true },
                                 { teks: isKasbon(p) ? `(${formatRp(parseInt(p.nominal) || 0)})` : formatRp(parseInt(p.nominal) || 0), warna: isKasbon(p) ? '#B45309' : '#DC2626' }
                             ];
-                        }), [{ teks: `${pengeluaranBulan.length} transaksi` }, { teks: adaKasbon ? 'Total (tanpa kasbon)' : 'Total pengeluaran' }, null, { teks: formatRp(totalKeluarBulan), warna: '#DC2626' }]);
+                        }).concat(rutinDisimpan.map(x => [
+                            { teks: '-', warna: '#9CA3AF' },
+                            { teks: `${x.nama} (Sementara uang disimpan)`, warna: '#6B7280' },
+                            { teks: 'Disimpan', warna: '#D97706', bold: true },
+                            { teks: `(${formatRp(x.nominal)})`, warna: '#D97706' }
+                        ])), [{ teks: `${pengeluaranBulan.length} transaksi` }, { teks: (adaKasbon || rutinDisimpan.length) ? `Total dibayar (tanpa ${[adaKasbon && 'kasbon', rutinDisimpan.length && 'disimpan'].filter(Boolean).join(' & ')})` : 'Total pengeluaran' }, null, { teks: formatRp(totalKeluarBulan), warna: '#DC2626' }]);
                     }
                 }
 
