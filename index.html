@@ -3105,7 +3105,53 @@
         /* ============================================================
            14. EXPORT (WHATSAPP / PDF / CSV)
            ============================================================ */
-        function shareWA() {
+        // Shares the active period's PNG report together with the WhatsApp text summary.
+        // wa.me links can only carry text, so the image goes through the Web Share API
+        // (Android/iOS share sheet → pick WhatsApp). Where file sharing isn't supported
+        // (most desktop browsers) the PNG is copied to the clipboard + downloaded and
+        // WhatsApp opens with the text, so the image can be pasted/attached manually.
+        async function shareWA() {
+            let text = buatTeksWA();
+            let { canvas, namaFile } = await buatCanvasLaporan();
+            let blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+            let file = blob ? new File([blob], namaFile, { type: 'image/png' }) : null;
+
+            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                // Android WhatsApp uses `text` as the image caption, but iOS WhatsApp drops
+                // any text sent alongside a file — so also put it on the clipboard first,
+                // letting the user paste it into the caption if it didn't come through.
+                try {
+                    await navigator.clipboard.writeText(text);
+                    tampilkanNotifikasi('Teks laporan disalin — tempel di caption jika belum muncul.');
+                } catch (e) {}
+                try {
+                    await navigator.share({ files: [file], text, title: 'Laporan Kas IPL GPP' });
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return; // user closed the share sheet
+                    // otherwise fall through to the manual fallback
+                }
+            }
+
+            let disalin = false;
+            if (blob && navigator.clipboard && window.ClipboardItem) {
+                try {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    disalin = true;
+                } catch (e) {}
+            }
+            let a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = namaFile;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            alert(disalin
+                ? 'Gambar laporan sudah disalin & diunduh. Tempel (Ctrl+V) gambar di chat WhatsApp.'
+                : 'Gambar laporan sudah diunduh. Lampirkan gambar tersebut di chat WhatsApp.');
+        }
+
+        function buatTeksWA() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = document.getElementById('filterTahun').value;
 
             // Same all-time figures as the swipeable "Total Saldo" widget's three views
@@ -3149,7 +3195,7 @@
                 `*Agenda Mendatang*\n${teksAgenda}\n\n` +
                 `_Terima kasih atas partisipasi warga._`;
 
-            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            return text;
         }
 
         // Every distinct (bulan, tahun) that has any recorded transaction (dues payment or
@@ -3182,7 +3228,18 @@
             });
         }
 
-        function downloadImage() {
+        async function downloadImage() {
+            let { canvas, namaFile } = await buatCanvasLaporan();
+            let a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = namaFile;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+
+        // Renders the "Gambar (PNG)" report for the active Beranda period onto a canvas.
+        // Shared by downloadImage() and shareWA() so both always produce the same picture.
+        // Resolves to { canvas, namaFile }.
+        function buatCanvasLaporan() {
             let bulan = parseInt(document.getElementById('filterBulan').value), tahun = parseInt(document.getElementById('filterTahun').value);
 
             let totalAllTime = hitungTotalAllTimeDariBreakdown();
@@ -3202,11 +3259,15 @@
             let W = 480;
             let padX = 16;
             let rowH = 22;
-            let logoImg = new Image();
-            logoImg.crossOrigin = 'anonymous';
-            logoImg.onload = () => desenhar(logoImg);
-            logoImg.onerror = () => desenhar(null);
-            logoImg.src = document.querySelector('.app-logo img').src;
+            let namaFile = `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.png`;
+            return new Promise(resolve => {
+                let logoImg = new Image();
+                logoImg.crossOrigin = 'anonymous';
+                logoImg.onload = () => resolve({ canvas: desenhar(logoImg), namaFile });
+                logoImg.onerror = () => resolve({ canvas: desenhar(null), namaFile });
+                let logoEl = document.querySelector('.app-logo img');
+                if (logoEl && logoEl.src) logoImg.src = logoEl.src; else logoImg.onerror();
+            });
 
             function desenhar(logo) {
                 let headerH = 46, barH = 24, summaryH = 50, tableHeaderH = 22;
@@ -3299,10 +3360,7 @@
                     y += rowH;
                 });
 
-                let a = document.createElement('a');
-                a.href = canvas.toDataURL('image/png');
-                a.download = `Laporan_Keuangan_${bulanNames[bulan]}_${tahun}.png`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                return canvas;
             }
         }
 
